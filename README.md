@@ -16,8 +16,8 @@ API REST construida con **FastAPI** y **MySQL** para gestionar rutas y reservas 
 
 ```bash
 # Clonar el repositorio
-git clone <url-del-repositorio>
-cd <nombre-del-proyecto>
+git clone <https://github.com/nicolasgarciae/proyecto1corte>
+cd <proyecto1corte>
 
 # Instalar dependencias
 pip install fastapi uvicorn aiomysql
@@ -79,7 +79,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 La API estará disponible en:
 - Local: `http://localhost:8000`
-- Red: `http://<tu-ip-local>:8000`
+- Red: `http://<172.20.87.41>:8000`
 
 Documentación interactiva (Swagger): `http://localhost:8000/docs`
 
