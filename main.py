@@ -66,6 +66,7 @@ async def obtener_rutas():
 
 
 # Crear reserva
+# Crear reserva
 @app.post("/reservas")
 async def crear_reserva(reserva: Reserva):
 
@@ -74,12 +75,30 @@ async def crear_reserva(reserva: Reserva):
 
     reserva_id = str(uuid.uuid4())
 
-    # Verificar que la ruta exista
-    await cursor.execute("SELECT * FROM rutas WHERE id=%s", (reserva.ruta_id,))
+    # Verificar que la ruta exista y obtener su capacidad
+    await cursor.execute("SELECT capacidad FROM rutas WHERE id=%s", (reserva.ruta_id,))
     ruta = await cursor.fetchone()
 
     if not ruta:
+        await cursor.close()
+        conn.close()
         raise HTTPException(status_code=404, detail="Ruta no encontrada")
+
+    capacidad = ruta[0]
+
+    # Contar reservas actuales para esa ruta
+    await cursor.execute(
+        "SELECT COUNT(*) FROM reservas WHERE ruta_id=%s",
+        (reserva.ruta_id,)
+    )
+    resultado = await cursor.fetchone()
+    reservas_actuales = resultado[0]
+
+    # Validar capacidad
+    if reservas_actuales >= capacidad:
+        await cursor.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad máxima")
 
     query = """
     INSERT INTO reservas (id, nombre_pasajero, ruta_id)
