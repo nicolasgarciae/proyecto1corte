@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reserva Ya - Acceso y Operaciones</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07111f;
+      --surface: rgba(10, 22, 40, 0.92);
+      --surface-soft: rgba(15, 28, 47, 0.84);
+      --border: rgba(110, 144, 185, 0.22);
+      --text: #edf4ff;
+      --muted: #8fa4c2;
+      --accent: #4dd7a8;
+      --accent-alt: #ff9f43;
+      --danger: #ff6b6b;
+      --success: #57cc99;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "DM Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(77, 215, 168, 0.13), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(255, 159, 67, 0.13), transparent 28%),
+        linear-gradient(180deg, #07111f 0%, #0d1727 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(143, 164, 194, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(143, 164, 194, 0.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      padding: 22px 40px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(7, 17, 31, 0.82);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      color: #05231c;
+      font-weight: 700;
+      box-shadow: 0 12px 25px rgba(77, 215, 168, 0.28);
+    }
+
+    .brand h1 {
+      font-family: "Syne", sans-serif;
+      font-size: 22px;
+      letter-spacing: -0.04em;
+    }
+
+    .brand p {
+      margin-top: 2px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill-btn,
+    .nav-btn,
+    .submit-btn,
+    .ghost-btn,
+    .danger-btn {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .nav-btn,
+    .pill-btn,
+    .ghost-btn,
+    .danger-btn {
+      padding: 10px 16px;
+      background: transparent;
+      color: var(--text);
+    }
+
+    .nav-btn {
+      color: var(--muted);
+      border-color: rgba(143, 164, 194, 0.12);
+    }
+
+    .nav-btn.active,
+    .nav-btn:hover,
+    .pill-btn.primary,
+    .submit-btn {
+      background: var(--accent);
+      color: #05231c;
+      border-color: transparent;
+    }
+
+    .pill-btn,
+    .ghost-btn {
+      border-color: rgba(143, 164, 194, 0.16);
+    }
+
+    .danger-btn {
+      color: var(--danger);
+      border-color: rgba(255, 107, 107, 0.2);
+      background: rgba(255, 107, 107, 0.08);
+    }
+
+    .pill-btn:hover,
+    .nav-btn:hover,
+    .submit-btn:hover,
+    .ghost-btn:hover,
+    .danger-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .user-chip {
+      padding: 10px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .layout {
+      position: relative;
+      z-index: 1;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 56px 40px 72px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .hero,
+    .view,
+    .route-card,
+    .admin-panel,
+    .metric-card,
+    .table-card,
+    .status-card,
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      padding: 34px;
+      border-radius: 28px;
+      overflow: hidden;
+    }
+
+    .hero-copy h2,
+    .section-title,
+    .hero-side h3,
+    .table-card h3,
+    .admin-panel h3,
+    .status-card h3 {
+      font-family: "Syne", sans-serif;
+      letter-spacing: -0.05em;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(77, 215, 168, 0.24);
+      background: rgba(77, 215, 168, 0.1);
+      color: var(--accent);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 18px;
+    }
+
+    .hero-copy h2 {
+      font-size: clamp(2.3rem, 4vw, 4.6rem);
+      line-height: 0.98;
+      max-width: 700px;
+    }
+
+    .hero-copy h2 span {
+      color: var(--accent);
+    }
+
+    .hero-copy p,
+    .hero-side p,
+    .section-subtitle,
+    .muted {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .hero-copy p {
+      margin-top: 18px;
+      max-width: 580px;
+      font-size: 17px;
+    }
+
+    .hero-stats,
+    .routes-grid,
+    .metrics-grid,
+    .status-grid,
+    .admin-grid,
+    .form-grid,
+    .table-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero-stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 28px;
+    }
+
+    .stat-box,
+    .metric-card,
+    .status-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(143, 164, 194, 0.1);
+    }
+
+    .stat-box strong,
+    .metric-card strong {
+      display: block;
+      font-family: "Syne", sans-serif;
+      font-size: 28px;
+    }
+
+    .stat-box span,
+    .metric-card span,
+    .status-card p {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hero-side {
+      border-radius: 24px;
+      padding: 28px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(143, 164, 194, 0.1);
+    }
+
+    .hero-side h3 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+
+    .hero-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .hero-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(143, 164, 194, 0.12);
+    }
+
+    .hero-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .hero-item span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .view {
+      display: none;
+      border-radius: 28px;
+      padding: 28px;
+      animation: fadeUp 0.24s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .section-head,
+    .panel-head,
+    .table-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-size: 28px;
+    }
+
+    .section-subtitle {
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .routes-grid {
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      margin-top: 24px;
+    }
+
+    .route-card {
+      border-radius: 24px;
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .route-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), transparent 70%);
+    }
+
+    .route-title {
+      font-family: "Syne", sans-serif;
+      font-size: 21px;
+    }
+
+    .route-code,
+    .small-pill,
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(143, 164, 194, 0.14);
+      background: rgba(143, 164, 194, 0.1);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(143, 164, 194, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-alt));
+    }
+
+    .route-actions,
+    .panel-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .info-strip {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(143, 164, 194, 0.14);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+    }
+
+    .admin-grid {
+      grid-template-columns: 1.1fr 0.9fr;
+      margin-top: 22px;
+      align-items: start;
+    }
+
+    .metrics-grid,
+    .status-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-top: 22px;
+    }
+
+    .admin-panel,
+    .table-card {
+      border-radius: 24px;
+      padding: 22px;
+      display: grid;
+      gap: 18px;
+      align-content: start;
+      align-self: start;
+    }
+
+    .form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 14px 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(143, 164, 194, 0.18);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: rgba(77, 215, 168, 0.55);
+      box-shadow: 0 0 0 3px rgba(77, 215, 168, 0.12);
+    }
+
+    .submit-btn {
+      padding: 14px 18px;
+      min-width: 180px;
+      justify-self: start;
+      font-weight: 700;
+    }
+
+    .table-list {
+      gap: 12px;
+    }
+
+    .table-row {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(143, 164, 194, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .row-main {
+      display: grid;
+      gap: 6px;
+    }
+
+    .row-main strong {
+      font-family: "Syne", sans-serif;
+      font-size: 18px;
+    }
+
+    .row-main span,
+    .row-main small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-pill.ok {
+      color: var(--success);
+      background: rgba(87, 204, 153, 0.12);
+      border-color: rgba(87, 204, 153, 0.18);
+    }
+
+    .status-pill.off {
+      color: var(--danger);
+      background: rgba(255, 107, 107, 0.12);
+      border-color: rgba(255, 107, 107, 0.18);
+    }
+
+    .empty,
+    .loading {
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 28px;
+      color: var(--muted);
+      border-radius: 18px;
+      border: 1px dashed rgba(143, 164, 194, 0.18);
+    }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid rgba(77, 215, 168, 0.15);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 18px;
+      background: rgba(3, 9, 18, 0.72);
+      backdrop-filter: blur(10px);
+      z-index: 40;
+    }
+
+    .modal-overlay.open {
+      display: grid;
+    }
+
+    .modal {
+      width: min(100%, 520px);
+      border-radius: 28px;
+      padding: 28px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .modal-head h3 {
+      font-family: "Syne", sans-serif;
+      font-size: 28px;
+      letter-spacing: -0.05em;
+    }
+
+    .close-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(143, 164, 194, 0.18);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(143, 164, 194, 0.16);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .auth-tab.active {
+      background: rgba(77, 215, 168, 0.14);
+      border-color: rgba(77, 215, 168, 0.22);
+      color: var(--text);
+    }
+
+    .toast-wrap {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      gap: 10px;
+      z-index: 50;
+    }
+
+    .toast {
+      min-width: 260px;
+      max-width: 340px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(143, 164, 194, 0.16);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      animation: fadeUp 0.2s ease;
+    }
+
+    .toast.success {
+      background: rgba(87, 204, 153, 0.12);
+      color: #d8ffe1;
+    }
+
+    .toast.error {
+      background: rgba(255, 107, 107, 0.12);
+      color: #ffe0e0;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1024px) {
+      .hero,
+      .admin-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      header,
+      .layout {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-stats,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head,
+      .panel-head,
+      .table-row,
+      .header-right {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .submit-btn,
+      .pill-btn,
+      .ghost-btn,
+      .danger-btn,
+      .nav-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-mark">RY</div>
+      <div>
+        <h1>ReservaYa Control</h1>
+        <p>Rutas publicas con acceso seguro para reservas.</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <nav>
+        <button class="nav-btn active" data-view="rutas">Rutas</button>
+        <button class="nav-btn hidden" data-view="admin" id="admin-nav-btn">Panel Admin</button>
+      </nav>
+
+      <div class="user-chip hidden" id="user-chip"></div>
+      <button class="pill-btn" id="open-signin-btn">Sign in</button>
+      <button class="pill-btn primary" id="open-login-btn">Login</button>
+      <button class="pill-btn hidden" id="logout-btn">Logout</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Reservas con acceso</div>
+        <h2>Inicia sesion para <span>reservar</span></h2>
+        <p>
+          Los usuarios registrados pueden consultar rutas y crear reservas.
+        </p>
+        <div class="hero-stats" id="hero-stats">
+          <div class="stat-box"><strong>0</strong><span>Rutas activas</span></div>
+          <div class="stat-box"><strong>0</strong><span>Reservas posibles</span></div>
+          <div class="stat-box"><strong>0%</strong><span>Ocupacion promedio</span></div>
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <h3 id="hero-side-title">Acceso para reservar</h3>
+        <p id="hero-side-copy">Crea una cuenta o entra con tu usuario para habilitar el flujo de reserva.</p>
+        <div class="hero-list" id="hero-list">
+          <div class="hero-item">
+            <div>
+              <strong>Acceso personal</strong>
+              <span>Inicia sesion o crea tu cuenta para reservar de forma segura.</span>
+            </div>
+            <span class="small-pill">Acceder</span>
+          </div>
+          
+        </div>
+      </aside>
+    </section>
+
+    <section class="view active" id="view-rutas">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">Rutas disponibles</h3>
+          <p class="section-subtitle">Todos pueden ver las rutas. Solo usuarios autenticados pueden confirmar una reserva.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="refresh-routes-btn">Actualizar rutas</button>
+        </div>
+      </div>
+
+      <div class="info-strip" id="route-info-strip">
+        Debes iniciar sesion para reservar. Cuando entres, podras confirmar tu cupo en cualquier ruta disponible.
+      </div>
+
+      <div class="routes-grid" id="rutas-container">
+        <div class="loading"><div><div class="spinner"></div>Cargando rutas...</div></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-admin">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">Centro de operaciones</h3>
+          <p class="section-subtitle">Creacion de rutas, gestion de reservas, estado de infraestructura y actividad del sistema.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="refresh-admin-btn">Refrescar panel</button>
+        </div>
+      </div>
+
+      <div class="metrics-grid" id="admin-metrics">
+        <div class="metric-card"><strong>0</strong><span>Esperando datos del panel.</span></div>
+      </div>
+
+      <div class="status-grid" id="status-grid"></div>
+
+      <div class="admin-grid">
+        <div class="admin-panel">
+          <div class="panel-head">
+            <div>
+              <h3>Gestion de rutas</h3>
+              <p class="muted">Solo el administrador puede crear o eliminar rutas desde este panel.</p>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="admin-ruta-origen">Origen</label>
+              <input id="admin-ruta-origen" type="text" placeholder="Ej: Bogota" />
+            </div>
+            <div class="field">
+              <label for="admin-ruta-destino">Destino</label>
+              <input id="admin-ruta-destino" type="text" placeholder="Ej: Medellin" />
+            </div>
+            <div class="field">
+              <label for="admin-ruta-capacidad">Capacidad</label>
+              <input id="admin-ruta-capacidad" type="number" min="1" placeholder="Ej: 40" />
+            </div>
+          </div>
+
+          <button class="submit-btn" id="btn-admin-ruta">Crear ruta</button>
+
+          <div class="table-card">
+            <div class="panel-head">
+              <div>
+                <h3>Inventario de rutas</h3>
+                <p class="muted">Rutas activas con ocupacion y accion de eliminacion.</p>
+              </div>
+            </div>
+            <div class="table-list" id="admin-rutas-container">
+              <div class="loading"><div><div class="spinner"></div>Cargando inventario...</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="panel-head">
+            <div>
+              <h3>Reservas y actividad</h3>
+              <p class="muted">Historial de reservas y eventos procesados para control operativo.</p>
+            </div>
+          </div>
+
+          <div class="table-list" id="admin-reservas-container">
+            <div class="loading"><div><div class="spinner"></div>Cargando reservas...</div></div>
+          </div>
+
+          <div class="table-list" id="admin-eventos-container">
+            <div class="empty">Sin eventos cargados aun.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3>Acceso de usuarios</h3>
+          <p class="muted">Usa Login para entrar. Sign in crea una cuenta nueva para reservar.</p>
+        </div>
+        <button class="close-btn" id="close-auth-modal">x</button>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-mode="login">Login</button>
+        <button class="auth-tab" data-mode="register">Sign in</button>
+      </div>
+
+      <div class="field">
+        <label for="auth-username">Usuario</label>
+        <input id="auth-username" type="text" placeholder="Tu usuario" />
+      </div>
+
+      <div class="field" id="auth-full-name-field" style="margin-top: 16px; display: none;">
+        <label for="auth-full-name">Nombre completo</label>
+        <input id="auth-full-name" type="text" placeholder="Como quieres aparecer en la reserva" />
+      </div>
+
+      <div class="field" style="margin-top: 16px;">
+        <label for="auth-password">Contrasena</label>
+        <input id="auth-password" type="password" placeholder="Tu contrasena" />
+      </div>
+
+      <button class="submit-btn" id="auth-submit-btn" style="margin-top: 18px; width: 100%;">Entrar</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="reserve-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3>Confirmar reserva</h3>
+          <p class="muted" id="reserve-route-info">Ruta seleccionada</p>
+        </div>
+        <button class="close-btn" id="close-reserve-modal">x</button>
+      </div>
+
+      <div class="field">
+        <label for="reserve-passenger-name">Nombre del pasajero</label>
+        <input id="reserve-passenger-name" type="text" placeholder="Se llena con tu nombre, pero puedes ajustarlo" />
+      </div>
+
+      <input type="hidden" id="reserve-route-id" />
+      <button class="submit-btn" id="reserve-submit-btn" style="margin-top: 18px; width: 100%;">Crear reserva</button>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <script>
+    const API = window.location.protocol.startsWith("http") ? window.location.origin : "http://localhost:8000";
+    const TOKEN_KEY = "reserva_ya_token";
+    const USER_KEY = "reserva_ya_user";
+
+    const state = {
+      rutas: [],
+      dashboard: null,
+      infra: null,
+      authMode: "login",
+      token: localStorage.getItem(TOKEN_KEY) || "",
+      user: null,
+    };
+
+    function isLoggedIn() {
+      return Boolean(state.token && state.user);
+    }
+
+    function isAdmin() {
+      return state.user?.role === "admin";
+    }
+
+    function formatRouteName(item) {
+      return `${item.origen} -> ${item.destino}`;
+    }
+
+    function toast(message, type = "success") {
+      const node = document.createElement("div");
+      node.className = `toast ${type}`;
+      node.textContent = message;
+      document.getElementById("toasts").appendChild(node);
+      setTimeout(() => node.remove(), 3500);
+    }
+
+    function setButtonLoading(buttonId, loadingText, loading) {
+      const button = document.getElementById(buttonId);
+      if (!button) return;
+      if (!button.dataset.originalText) button.dataset.originalText = button.textContent;
+      button.disabled = loading;
+      button.textContent = loading ? loadingText : button.dataset.originalText;
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add("open");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("open");
+    }
+
+    function persistSession(token, user) {
+      state.token = token;
+      state.user = user;
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      renderAuthState();
+    }
+
+    function clearSession(showToast = false) {
+      state.token = "";
+      state.user = null;
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      renderAuthState();
+      if (showToast) toast("Sesion cerrada.");
+    }
+
+    function authHeaders(extra = {}) {
+      const headers = { ...extra };
+      if (state.token) headers.Authorization = `Bearer ${state.token}`;
+      return headers;
+    }
+
+    async function apiFetch(path, options = {}, protectedCall = false) {
+      const headers = { ...(options.headers || {}) };
+      if (protectedCall && state.token) headers.Authorization = `Bearer ${state.token}`;
+      const response = await fetch(`${API}${path}`, { ...options, headers });
+      if (protectedCall && response.status === 401) {
+        clearSession();
+      }
+      return response;
+    }
+
+    function renderAuthState() {
+      const userChip = document.getElementById("user-chip");
+      const adminNav = document.getElementById("admin-nav-btn");
+      const loginBtn = document.getElementById("open-login-btn");
+      const signInBtn = document.getElementById("open-signin-btn");
+      const logoutBtn = document.getElementById("logout-btn");
+      const infoStrip = document.getElementById("route-info-strip");
+
+      if (isLoggedIn()) {
+        userChip.classList.remove("hidden");
+        logoutBtn.classList.remove("hidden");
+        loginBtn.classList.add("hidden");
+        signInBtn.classList.add("hidden");
+        userChip.textContent = `${state.user.full_name} (${state.user.username})`;
+        infoStrip.textContent = "Sesion activa. Ya puedes hacer reservas en cualquier ruta disponible.";
+      } else {
+        userChip.classList.add("hidden");
+        logoutBtn.classList.add("hidden");
+        loginBtn.classList.remove("hidden");
+        signInBtn.classList.remove("hidden");
+        userChip.textContent = "";
+        infoStrip.textContent = "Debes iniciar sesion para reservar. Cuando entres, podras confirmar tu cupo en cualquier ruta disponible.";
+      }
+
+      adminNav.classList.toggle("hidden", !isAdmin());
+      if (!isAdmin() && document.getElementById("view-admin").classList.contains("active")) {
+        activateView("rutas");
+      }
+
+      renderHeroSide();
+    }
+
+    function renderHeroStats() {
+      const totalRutas = state.rutas.length;
+      const totalCapacidad = state.rutas.reduce((sum, ruta) => sum + Number(ruta.capacidad || 0), 0);
+      const totalReservas = state.rutas.reduce((sum, ruta) => sum + Number(ruta.reservas_actuales || 0), 0);
+      const ocupacion = totalCapacidad ? Math.round((totalReservas / totalCapacidad) * 100) : 0;
+
+      document.getElementById("hero-stats").innerHTML = `
+        <div class="stat-box"><strong>${totalRutas}</strong><span>Rutas activas</span></div>
+        <div class="stat-box"><strong>${Math.max(totalCapacidad - totalReservas, 0)}</strong><span>Asientos disponibles</span></div>
+        <div class="stat-box"><strong>${ocupacion}%</strong><span>Ocupacion promedio</span></div>
+      `;
+    }
+
+    function renderHeroSide() {
+      const title = document.getElementById("hero-side-title");
+      const copy = document.getElementById("hero-side-copy");
+      const list = document.getElementById("hero-list");
+
+      if (!isLoggedIn()) {
+        title.textContent = "Acceso para reservar";
+        copy.textContent = "Crea una cuenta o entra con tu usuario para habilitar el flujo de reserva.";
+        list.innerHTML = `
+          <div class="hero-item">
+            <div>
+              <strong>Acceso personal</strong>
+              <span>Inicia sesion o crea tu cuenta para reservar de forma segura.</span>
+            </div>
+            <span class="small-pill">Acceder</span>
+          </div>
+        `;
+        return;
+      }
+
+      if (isAdmin()) {
+        title.textContent = "Sesion activa";
+        copy.textContent = "Tu acceso esta listo para continuar con reservas y navegar por la plataforma.";
+        list.innerHTML = `
+          <div class="hero-item">
+            <div>
+              <strong>Bienvenido</strong>
+              <span>${state.user.full_name} ya puede continuar dentro de la plataforma.</span>
+            </div>
+            <span class="small-pill">Activo</span>
+          </div>
+        `;
+        return;
+      }
+
+      title.textContent = "Usuario autenticado";
+      copy.textContent = "Ya puedes reservar en cualquier ruta disponible con tu sesion actual.";
+      list.innerHTML = `
+        <div class="hero-item">
+          <div>
+            <strong>Sesion activa</strong>
+            <span>${state.user.full_name} puede reservar en cualquier ruta disponible.</span>
+          </div>
+          <span class="small-pill">Reserva</span>
+        </div>
+      `;
+    }
+
+    function activateView(name) {
+      if (name === "admin" && !isAdmin()) {
+        toast("Solo el administrador puede abrir ese panel.", "error");
+        name = "rutas";
+      }
+
+      document.querySelectorAll(".view").forEach((view) => {
+        view.classList.toggle("active", view.id === `view-${name}`);
+      });
+      document.querySelectorAll(".nav-btn").forEach((button) => {
+        button.classList.toggle("active", button.dataset.view === name);
+      });
+
+      if (name === "rutas") loadRutas();
+      if (name === "admin") loadAdminPanel();
+    }
+
+    function renderRoutes(rutas) {
+      const container = document.getElementById("rutas-container");
+      if (!rutas.length) {
+        container.innerHTML = '<div class="empty">No hay rutas registradas aun.</div>';
+        return;
+      }
+
+      container.innerHTML = "";
+      rutas.forEach((ruta) => {
+        const card = document.createElement("article");
+        card.className = "route-card";
+        card.innerHTML = `
+          <div class="section-head">
+            <div>
+              <div class="route-title">${formatRouteName(ruta)}</div>
+              <p class="muted">${ruta.reservas_actuales} reservas activas y ${ruta.asientos_disponibles} asientos disponibles</p>
+            </div>
+            <span class="route-code">${ruta.id.slice(0, 8)}</span>
+          </div>
+          <div>
+            <div class="section-head" style="margin-bottom: 10px;">
+              <span class="muted">Ocupacion</span>
+              <span class="muted">${ruta.ocupacion_porcentaje}%</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${Math.min(ruta.ocupacion_porcentaje, 100)}%"></div></div>
+          </div>
+          <div class="route-actions">
+            <button class="pill-btn primary reserve-trigger">Reservar</button>
+            <span class="small-pill">Capacidad ${ruta.capacidad}</span>
+          </div>
+        `;
+
+        card.querySelector(".reserve-trigger").addEventListener("click", () => {
+          if (!isLoggedIn()) {
+            state.authMode = "login";
+            syncAuthModal();
+            openModal("auth-modal");
+            toast("Debes iniciar sesion para reservar.", "error");
+            return;
+          }
+          openReserveModal(ruta);
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function renderMetrics(metricas) {
+      document.getElementById("admin-metrics").innerHTML = `
+        <div class="metric-card"><strong>${metricas.total_rutas}</strong><span>Rutas activas</span></div>
+        <div class="metric-card"><strong>${metricas.total_reservas}</strong><span>Reservas activas</span></div>
+        <div class="metric-card"><strong>${metricas.capacidad_total}</strong><span>Capacidad total</span></div>
+        <div class="metric-card"><strong>${metricas.asientos_disponibles}</strong><span>Asientos libres</span></div>
+        <div class="metric-card"><strong>${metricas.ocupacion_promedio}%</strong><span>Ocupacion promedio</span></div>
+      `;
+    }
+
+    function renderInfraStatus(infra) {
+      const items = [
+        { title: "MySQL", ok: infra.mysql, copy: "Persistencia principal del sistema." },
+        { title: "Redis", ok: infra.redis, copy: "Sesiones, cache y eventos recientes." },
+        { title: "RabbitMQ", ok: infra.rabbitmq, copy: `Cola activa: ${infra.queue}.` },
+      ];
+
+      document.getElementById("status-grid").innerHTML = items.map((item) => `
+        <article class="status-card">
+          <h3>${item.title}</h3>
+          <p>${item.copy}</p>
+          <span class="status-pill ${item.ok ? "ok" : "off"}">${item.ok ? "Conectado" : "No disponible"}</span>
+        </article>
+      `).join("");
+    }
+
+    function renderAdminRoutes(rutas) {
+      const container = document.getElementById("admin-rutas-container");
+      if (!rutas.length) {
+        container.innerHTML = '<div class="empty">No hay rutas para administrar.</div>';
+        return;
+      }
+
+      container.innerHTML = "";
+      rutas.forEach((ruta) => {
+        const row = document.createElement("div");
+        row.className = "table-row";
+        row.innerHTML = `
+          <div class="row-main">
+            <strong>${formatRouteName(ruta)}</strong>
+            <span>Capacidad ${ruta.capacidad} | ${ruta.reservas_actuales} reservas | ${ruta.asientos_disponibles} libres</span>
+            <small>ID ${ruta.id}</small>
+          </div>
+          <div class="panel-actions">
+            <span class="small-pill">${ruta.ocupacion_porcentaje}% ocupado</span>
+            <button class="danger-btn route-delete-btn">Eliminar ruta</button>
+          </div>
+        `;
+        row.querySelector(".route-delete-btn").addEventListener("click", () => deleteRoute(ruta.id, formatRouteName(ruta)));
+        container.appendChild(row);
+      });
+    }
+
+    function renderAdminReservations(reservas) {
+      const container = document.getElementById("admin-reservas-container");
+      if (!reservas.length) {
+        container.innerHTML = '<div class="empty">No hay reservas activas para mostrar.</div>';
+        return;
+      }
+
+      container.innerHTML = reservas.map((reserva) => `
+        <div class="table-row">
+          <div class="row-main">
+            <strong>${reserva.nombre_pasajero}</strong>
+            <span>${formatRouteName(reserva)}</span>
+            <small>Usuario: ${reserva.usuario_reserva || "sin cuenta"} | ID ${reserva.id}</small>
+          </div>
+          <div class="panel-actions">
+            <button class="danger-btn" onclick="deleteReservation('${reserva.id}', '${reserva.nombre_pasajero.replace(/'/g, "\\'")}')">Cancelar</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderEvents(items) {
+      const container = document.getElementById("admin-eventos-container");
+      if (!items.length) {
+        container.innerHTML = '<div class="empty">No hay eventos procesados aun. Ejecuta consumer.py si quieres ver el historial.</div>';
+        return;
+      }
+
+      container.innerHTML = items.map((item) => {
+        const values = Object.values(item.payload || {}).join(" | ") || "Sin detalles";
+        const dateLabel = new Date(item.procesado_en || item.created_at || Date.now()).toLocaleString();
+        return `
+          <div class="table-row">
+            <div class="row-main">
+              <strong>${(item.type || "evento").replaceAll("_", " ")}</strong>
+              <span>${values}</span>
+              <small>${dateLabel}</small>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function syncAuthModal() {
+      const registerMode = state.authMode === "register";
+      document.querySelectorAll(".auth-tab").forEach((button) => {
+        button.classList.toggle("active", button.dataset.mode === state.authMode);
+      });
+      document.getElementById("auth-full-name-field").style.display = registerMode ? "grid" : "none";
+      document.getElementById("auth-submit-btn").textContent = registerMode ? "Crear cuenta" : "Entrar";
+    }
+
+    function openReserveModal(ruta) {
+      document.getElementById("reserve-route-info").textContent = `${formatRouteName(ruta)} | ${ruta.asientos_disponibles} asientos disponibles`;
+      document.getElementById("reserve-route-id").value = ruta.id;
+      document.getElementById("reserve-passenger-name").value = state.user?.full_name || "";
+      openModal("reserve-modal");
+    }
+
+    async function loadRutas() {
+      const container = document.getElementById("rutas-container");
+      container.innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando rutas...</div></div>';
+      try {
+        const response = await apiFetch("/rutas");
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        state.rutas = await response.json();
+        renderHeroStats();
+        renderRoutes(state.rutas);
+      } catch (error) {
+        container.innerHTML = `<div class="empty">No se pudieron cargar las rutas.<br><small>${error.message}</small></div>`;
+      }
+    }
+
+    async function loadAdminPanel() {
+      if (!isAdmin()) return;
+
+      document.getElementById("admin-rutas-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando panel...</div></div>';
+      document.getElementById("admin-reservas-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando reservas...</div></div>';
+      document.getElementById("admin-eventos-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando eventos...</div></div>';
+
+      try {
+        const [dashboardRes, infraRes, eventsRes] = await Promise.all([
+          apiFetch("/admin/dashboard", {}, true),
+          apiFetch("/infra/status", {}, true),
+          apiFetch("/admin/eventos", {}, true),
+        ]);
+
+        if (!dashboardRes.ok) throw new Error(`Dashboard ${dashboardRes.status}`);
+        if (!infraRes.ok) throw new Error(`Infra ${infraRes.status}`);
+        if (!eventsRes.ok) throw new Error(`Eventos ${eventsRes.status}`);
+
+        state.dashboard = await dashboardRes.json();
+        state.infra = await infraRes.json();
+        const events = await eventsRes.json();
+
+        renderMetrics(state.dashboard.metricas);
+        renderInfraStatus(state.infra);
+        renderAdminRoutes(state.dashboard.rutas);
+        renderAdminReservations(state.dashboard.reservas);
+        renderEvents(events.items || []);
+      } catch (error) {
+        document.getElementById("admin-rutas-container").innerHTML = `<div class="empty">No se pudo cargar el panel.<br><small>${error.message}</small></div>`;
+        document.getElementById("admin-reservas-container").innerHTML = '<div class="empty">Sin datos de reservas.</div>';
+        document.getElementById("admin-eventos-container").innerHTML = '<div class="empty">Sin eventos disponibles.</div>';
+      }
+    }
+
+    async function submitAuth() {
+      const username = document.getElementById("auth-username").value.trim();
+      const fullName = document.getElementById("auth-full-name").value.trim();
+      const password = document.getElementById("auth-password").value.trim();
+
+      if (!username || !password || (state.authMode === "register" && !fullName)) {
+        toast("Completa los campos requeridos.", "error");
+        return;
+      }
+
+      setButtonLoading("auth-submit-btn", state.authMode === "register" ? "Creando..." : "Entrando...", true);
+      try {
+        const path = state.authMode === "register" ? "/auth/register" : "/auth/login";
+        const payload = state.authMode === "register"
+          ? { username, full_name: fullName, password }
+          : { username, password };
+        const response = await apiFetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+
+        persistSession(data.token, data.user);
+        closeModal("auth-modal");
+        document.getElementById("auth-username").value = "";
+        document.getElementById("auth-full-name").value = "";
+        document.getElementById("auth-password").value = "";
+        toast(state.authMode === "register" ? "Cuenta creada y sesion iniciada." : "Sesion iniciada correctamente.");
+        if (isAdmin()) {
+          activateView("admin");
+          await loadAdminPanel();
+        }
+      } catch (error) {
+        toast(error.message, "error");
+      } finally {
+        setButtonLoading("auth-submit-btn", "", false);
+      }
+    }
+
+    async function logout() {
+      try {
+        await apiFetch("/auth/logout", { method: "POST", headers: authHeaders() }, true);
+      } catch (error) {
+        console.error(error);
+      }
+      clearSession(true);
+    }
+
+    async function restoreSession() {
+      if (!state.token) {
+        const savedUser = localStorage.getItem(USER_KEY);
+        if (savedUser) state.user = JSON.parse(savedUser);
+        renderAuthState();
+        return;
+      }
+
+      try {
+        const response = await apiFetch("/auth/me", { headers: authHeaders() }, true);
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        const data = await response.json();
+        state.user = data.user;
+      } catch (error) {
+        clearSession();
+      }
+
+      renderAuthState();
+    }
+
+    async function createRouteFromAdmin() {
+      const origen = document.getElementById("admin-ruta-origen").value.trim();
+      const destino = document.getElementById("admin-ruta-destino").value.trim();
+      const capacidad = Number.parseInt(document.getElementById("admin-ruta-capacidad").value, 10);
+
+      if (!origen || !destino || !capacidad || capacidad < 1) {
+        toast("Completa origen, destino y capacidad validos.", "error");
+        return;
+      }
+
+      setButtonLoading("btn-admin-ruta", "Creando ruta...", true);
+      try {
+        const response = await apiFetch("/rutas", {
+          method: "POST",
+          headers: { ...authHeaders({ "Content-Type": "application/json" }) },
+          body: JSON.stringify({ origen, destino, capacidad }),
+        }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+
+        toast("Ruta creada correctamente.");
+        document.getElementById("admin-ruta-origen").value = "";
+        document.getElementById("admin-ruta-destino").value = "";
+        document.getElementById("admin-ruta-capacidad").value = "";
+        await Promise.all([loadRutas(), loadAdminPanel()]);
+      } catch (error) {
+        toast(error.message, "error");
+      } finally {
+        setButtonLoading("btn-admin-ruta", "", false);
+      }
+    }
+
+    async function createReservation() {
+      const rutaId = document.getElementById("reserve-route-id").value;
+      const passengerName = document.getElementById("reserve-passenger-name").value.trim();
+
+      setButtonLoading("reserve-submit-btn", "Reservando...", true);
+      try {
+        const response = await apiFetch("/reservas", {
+          method: "POST",
+          headers: { ...authHeaders({ "Content-Type": "application/json" }) },
+          body: JSON.stringify({ ruta_id: rutaId, nombre_pasajero: passengerName }),
+        }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        toast("Reserva creada correctamente.");
+        closeModal("reserve-modal");
+        await Promise.all([loadRutas(), isAdmin() ? loadAdminPanel() : Promise.resolve()]);
+      } catch (error) {
+        toast(error.message, "error");
+      } finally {
+        setButtonLoading("reserve-submit-btn", "", false);
+      }
+    }
+
+    async function deleteRoute(routeId, routeName) {
+      if (!window.confirm(`Eliminar la ruta ${routeName}?`)) return;
+
+      try {
+        const response = await apiFetch(`/rutas/${routeId}`, { method: "DELETE", headers: authHeaders() }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        toast("Ruta eliminada.");
+        await Promise.all([loadRutas(), loadAdminPanel()]);
+      } catch (error) {
+        toast(error.message, "error");
+      }
+    }
+
+    async function deleteReservation(reservationId, passengerName) {
+      if (!window.confirm(`Cancelar la reserva de ${passengerName}?`)) return;
+
+      try {
+        const response = await apiFetch(`/reservas/${reservationId}`, { method: "DELETE", headers: authHeaders() }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        toast("Reserva cancelada.");
+        await loadAdminPanel();
+      } catch (error) {
+        toast(error.message, "error");
+      }
+    }
+
+    function setupEvents() {
+      document.querySelectorAll(".nav-btn").forEach((button) => {
+        button.addEventListener("click", () => activateView(button.dataset.view));
+      });
+
+      document.getElementById("open-login-btn").addEventListener("click", () => {
+        state.authMode = "login";
+        syncAuthModal();
+        openModal("auth-modal");
+      });
+
+      document.getElementById("open-signin-btn").addEventListener("click", () => {
+        state.authMode = "register";
+        syncAuthModal();
+        openModal("auth-modal");
+      });
+
+      document.getElementById("logout-btn").addEventListener("click", logout);
+      document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
+      document.getElementById("close-reserve-modal").addEventListener("click", () => closeModal("reserve-modal"));
+      document.getElementById("refresh-routes-btn").addEventListener("click", loadRutas);
+      document.getElementById("refresh-admin-btn").addEventListener("click", loadAdminPanel);
+      document.getElementById("btn-admin-ruta").addEventListener("click", createRouteFromAdmin);
+      document.getElementById("auth-submit-btn").addEventListener("click", submitAuth);
+      document.getElementById("reserve-submit-btn").addEventListener("click", createReservation);
+
+      document.querySelectorAll(".auth-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.authMode = button.dataset.mode;
+          syncAuthModal();
+        });
+      });
+
+      document.querySelectorAll(".modal-overlay").forEach((overlay) => {
+        overlay.addEventListener("click", (event) => {
+          if (event.target === overlay) overlay.classList.remove("open");
+        });
+      });
+    }
+
+    async function init() {
+      setupEvents();
+      syncAuthModal();
+      await restoreSession();
+      await loadRutas();
+      if (isAdmin()) await loadAdminPanel();
+    }
+
+    window.deleteReservation = deleteReservation;
+    init();
+  </script>
+</body>
+</html>

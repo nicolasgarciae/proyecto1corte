@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+aiomysql
+redis
+aio-pika
+python-dotenv

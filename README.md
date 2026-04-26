@@ -1,33 +1,56 @@
-# 🚌 API Reservas de Transporte
+# API Reservas de Transporte
 
-API REST construida con **FastAPI** y **MySQL** para gestionar rutas y reservas de transporte.
+Proyecto de reservas de transporte con FastAPI, MySQL, Redis y RabbitMQ.
 
----
+## Lo que incluye ahora
 
-## 📋 Requisitos
+- Login y registro de usuarios.
+- Sesiones con token usando Redis cuando esta disponible.
+- Credenciales fijas del administrador:
+  - Usuario: `admin`
+  - Contrasena: `admin`
+- Panel administrador protegido por backend y frontend.
+- Usuarios normales pueden ver rutas e iniciar sesion para hacer reservas.
+- Redis para cache y sesiones.
+- RabbitMQ para publicar eventos operativos.
+- `consumer.py` para procesar la cola y guardar actividad reciente en Redis.
+
+## Requisitos
 
 - Python 3.9+
-- MySQL 8.0+
+- MySQL 8+
+- Redis
+- RabbitMQ
 - pip
 
----
-
-## ⚙️ Instalación
+## Instalacion
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/nicolasgarciae/proyecto1corte
-cd proyecto1corte
-
-# Instalar dependencias
-pip install fastapi uvicorn aiomysql
+pip install -r requirements.txt
 ```
 
----
+## Variables de entorno
 
-## 🗄️ Configuración de Base de Datos
+La aplicacion ahora lee automaticamente el archivo `.env` si existe.
 
-Crea la base de datos y las tablas en MySQL:
+Archivo recomendado:
+
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=api_user
+MYSQL_PASSWORD=123456
+MYSQL_DB=transporte_db
+REDIS_URL=redis://localhost:6380/0
+RABBITMQ_URL=amqp://guest:guest@localhost:5673/
+RABBITMQ_QUEUE=reservas_eventos
+```
+
+## Base de datos
+
+La API crea la tabla `users` automaticamente al arrancar y si hace falta agrega la columna `user_id` a `reservas`.
+
+Tablas base esperadas:
 
 ```sql
 CREATE DATABASE transporte_db;
@@ -53,143 +76,74 @@ CREATE TABLE reservas (
 );
 ```
 
-La configuración de conexión se encuentra en `database.py`:
+## Redis y RabbitMQ con Docker
 
-```python
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 3306,
-    "user": "api_user",
-    "password": "123456",
-    "db": "transporte_db"
-}
-```
-
----
-
-## 🚀 Ejecutar el servidor
+Se dejaron puertos alternos para evitar conflicto con servicios ya instalados fuera de Docker:
 
 ```bash
-# Local (solo localhost)
+docker compose up -d
+```
+
+Servicios:
+
+- Redis en `localhost:6380`
+- RabbitMQ AMQP en `localhost:5673`
+- Panel de RabbitMQ en `http://localhost:15673`
+- Redis Commander en `http://localhost:8082`
+
+Credenciales del panel RabbitMQ:
+
+- usuario: `guest`
+- contrasena: `guest`
+
+Redis Commander no necesita credenciales adicionales en esta configuracion y se conecta al contenedor `redis` del mismo `docker compose`.
+
+Nota:
+
+- Los paneles web de RabbitMQ y Redis Commander se exponen de forma estable cuando levantas el proyecto con `sudo ./start_all.sh`.
+- Eso evita conflictos de puertos cuando vuelves a ejecutar el arranque.
+
+## Ejecutar la API
+
+```bash
 uvicorn main:app --reload
-
-# Red local (accesible desde otros dispositivos en la misma red)
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-La API estará disponible en:
-- Local: `http://localhost:8000`
-- Red: `http://172.20.87.41:8000`
+Si el puerto `8000` esta ocupado:
 
-Documentación interactiva (Swagger): `http://localhost:8000/docs`
-
----
-
-## 📡 Endpoints
-
-### Rutas
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| `POST` | `/rutas` | Crear una nueva ruta |
-| `GET`  | `/rutas` | Obtener todas las rutas |
-
-#### POST `/rutas` — Crear ruta
-
-**Body:**
-```json
-{
-  "origen": "Pereira",
-  "destino": "Bogotá",
-  "capacidad": 40
-}
+```bash
+uvicorn main:app --reload --port 8014
 ```
 
-**Respuesta:**
-```json
-{
-  "mensaje": "Ruta creada",
-  "id": "uuid-generado"
-}
+## Abrir la interfaz
+
+- `http://localhost:8000/`
+- o `http://localhost:8014/` si usaste otro puerto
+
+## Ejecutar el consumer
+
+En otra terminal:
+
+```bash
+python consumer.py
 ```
 
----
+## Flujo de acceso
 
-#### GET `/rutas` — Listar rutas
+- `Sign in`: crea una cuenta nueva y abre sesion automaticamente.
+- `Login`: entra con un usuario existente.
+- `admin/admin`: desbloquea el panel de administrador.
+- Usuarios normales: solo pueden ver rutas y reservar.
 
-**Respuesta:**
-```json
-[
-  {
-    "id": "uuid",
-    "origen": "Pereira",
-    "destino": "Bogotá",
-    "capacidad": 40
-  }
-]
-```
+## Endpoints principales
 
----
-
-### Reservas
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| `POST` | `/reservas` | Crear una nueva reserva |
-| `GET`  | `/reservas` | Obtener todas las reservas |
-
-#### POST `/reservas` — Crear reserva
-
-**Body:**
-```json
-{
-  "nombre_pasajero": "Juan Pérez",
-  "ruta_id": "uuid-de-la-ruta"
-}
-```
-
-**Respuesta:**
-```json
-{
-  "mensaje": "Reserva creada",
-  "id": "uuid-generado"
-}
-```
-
-> ⚠️ Retorna `404` si la `ruta_id` no existe.
-
----
-
-#### GET `/reservas` — Listar reservas
-
-**Respuesta:**
-```json
-[
-  {
-    "id": "uuid",
-    "nombre_pasajero": "Juan Pérez",
-    "origen": "Pereira",
-    "destino": "Bogotá"
-  }
-]
-```
-
----
-
-## 📁 Estructura del proyecto
-
-```
-├── main.py          # Endpoints de la API
-├── database.py      # Configuración y conexión a MySQL
-└── README.md
-```
-
----
-
-## 🔥 Firewall (Windows)
-
-Si vas a acceder desde otro dispositivo en la red, abre el puerto en CMD como administrador:
-
-```cmd
-netsh advfirewall firewall add rule name="FastAPI 8000" dir=in action=allow protocol=TCP localport=8000
-```
+- `GET /` interfaz web
+- `POST /auth/register` crear cuenta
+- `POST /auth/login` iniciar sesion
+- `GET /auth/me` validar sesion
+- `POST /auth/logout` cerrar sesion
+- `GET /rutas` listar rutas con ocupacion
+- `POST /reservas` crear reserva con sesion iniciada
+- `GET /admin/dashboard` panel admin
+- `GET /admin/eventos` eventos procesados
+- `GET /infra/status` estado de MySQL, Redis y RabbitMQ
