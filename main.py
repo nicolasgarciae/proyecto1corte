@@ -12,10 +12,12 @@ import aiomysql
 import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from database import RABBITMQ_QUEUE, RABBITMQ_URL, REDIS_URL, get_connection
+from logging_config import configure_logging
 
 INDEX_FILE = Path(__file__).with_name("index.html")
 CACHE_TTL = 30
@@ -24,6 +26,8 @@ ADMIN_EVENT_KEY = "admin:eventos"
 ADMIN_EVENT_LIMIT = 40
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin"
+
+logger = configure_logging("api")
 
 
 class Ruta(BaseModel):
@@ -73,7 +77,7 @@ async def lifespan(app: FastAPI):
         await redis_client.ping()
         app.state.redis = redis_client
     except Exception as exc:
-        print(f"Redis no disponible: {exc}")
+        logger.warning("Redis no disponible", extra={"extra_fields": {"error": str(exc)}})
 
     try:
         rabbit_connection = await aio_pika.connect_robust(RABBITMQ_URL)
@@ -82,7 +86,7 @@ async def lifespan(app: FastAPI):
         app.state.rabbit_connection = rabbit_connection
         app.state.rabbit_channel = rabbit_channel
     except Exception as exc:
-        print(f"RabbitMQ no disponible: {exc}")
+        logger.warning("RabbitMQ no disponible", extra={"extra_fields": {"error": str(exc)}})
 
     yield
 
@@ -103,6 +107,88 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+PUBLIC_OPENAPI_PATHS = {
+    "/",
+    "/health",
+    "/auth/register",
+    "/auth/login",
+}
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+
+    openapi_schema = get_openapi(
+        title=app.title,
+        version="1.0.0",
+        routes=app.routes,
+    )
+    openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})["BearerAuth"] = {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Pega aqui el token devuelto por /auth/login, sin escribir la palabra Bearer.",
+    }
+
+    for path, methods in openapi_schema.get("paths", {}).items():
+        if path in PUBLIC_OPENAPI_PATHS:
+            continue
+        for operation in methods.values():
+            operation.setdefault("security", [{"BearerAuth": []}])
+
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+
+@app.middleware("http")
+async def log_http_request(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    logger.info(
+        "Solicitud recibida",
+        extra={
+            "extra_fields": {
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "client": request.client.host if request.client else None,
+            }
+        },
+    )
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "Solicitud con error",
+            extra={
+                "extra_fields": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                }
+            },
+        )
+        raise
+
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "Solicitud completada",
+        extra={
+            "extra_fields": {
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+            }
+        },
+    )
+    return response
 
 
 def utc_now_iso() -> str:
@@ -214,10 +300,19 @@ async def invalidate_cache(request: Request):
 
 async def publish_event(request: Request, event_type: str, payload: dict):
     channel = getattr(request.app.state, "rabbit_channel", None)
+    log_id = str(uuid.uuid4())
     if channel is None or channel.is_closed:
+        logger.warning(
+            "RabbitMQ no disponible para publicar evento",
+            extra={
+                "log_id": log_id,
+                "extra_fields": {"event_type": event_type},
+            },
+        )
         return False
 
     message = {
+        "log_id": log_id,
         "type": event_type,
         "payload": payload,
         "created_at": utc_now_iso(),
@@ -230,6 +325,13 @@ async def publish_event(request: Request, event_type: str, payload: dict):
             delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
         ),
         routing_key=RABBITMQ_QUEUE,
+    )
+    logger.info(
+        "Evento publicado",
+        extra={
+            "log_id": log_id,
+            "extra_fields": {"event_type": event_type, "queue": RABBITMQ_QUEUE},
+        },
     )
     return True
 

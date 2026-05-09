@@ -1,4 +1,23 @@
 services:
+  app:
+    build: .
+    container_name: proyecto1corte-app
+    network_mode: host
+    environment:
+      MYSQL_HOST: localhost
+      MYSQL_PORT: "3306"
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: "123456"
+      MYSQL_DB: transporte_db
+      REDIS_URL: redis://localhost:6380/0
+      RABBITMQ_URL: amqp://guest:guest@localhost:5673/
+      RABBITMQ_QUEUE: reservas_eventos
+      LOG_LEVEL: INFO
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: proyecto1corte-redis
@@ -20,4 +39,17 @@ services:
       REDIS_HOSTS: local:redis:6379
     depends_on:
       - redis
+    restart: unless-stopped
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: proyecto1corte-dozzle
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOZZLE_NO_ANALYTICS: "true"
+    depends_on:
+      - redis
+      - rabbitmq
+      - redis-commander
     restart: unless-stopped

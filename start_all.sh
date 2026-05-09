@@ -6,27 +6,31 @@ ENV_FILE="$PROJECT_DIR/.env"
 APP_LOG="/tmp/proyecto1corte-app.log"
 RABBIT_UI_LOG="/tmp/proyecto1corte-rabbitmq-ui.log"
 REDIS_UI_LOG="/tmp/proyecto1corte-redis-commander-ui.log"
+DOZZLE_UI_LOG="/tmp/proyecto1corte-dozzle-ui.log"
 
-echo "[1/6] Iniciando MariaDB..."
+echo "[1/9] Iniciando MariaDB..."
 service mariadb start >/dev/null 2>&1 || true
 
-echo "[2/6] Iniciando Docker..."
+echo "[2/9] Iniciando Docker..."
 service docker start >/dev/null 2>&1 || dockerd >/tmp/dockerd-codex.log 2>&1 &
 sleep 6
 
-echo "[3/7] Liberando puertos locales de paneles..."
+echo "[3/9] Liberando puertos locales de paneles..."
 pkill -f 'tcp_bridge.py :: 15673' || true
 pkill -f 'tcp_bridge.py :: 8082' || true
+pkill -f 'tcp_bridge.py :: 8083' || true
+pkill -f uvicorn || true
 sleep 1
 
-echo "[4/7] Levantando contenedores..."
+echo "[4/9] Construyendo y levantando contenedores..."
 cd "$PROJECT_DIR"
-docker compose up -d
+docker compose up -d --build
 
-echo "[5/7] Sincronizando .env con IPs reales de Docker..."
+echo "[5/9] Sincronizando .env con IPs reales de Docker..."
 redis_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-redis)"
 rabbitmq_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-rabbitmq)"
 redis_commander_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-redis-commander)"
+dozzle_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-dozzle)"
 
 python3 - <<PY
 from pathlib import Path
@@ -61,7 +65,7 @@ env_path.write_text("\\n".join(f"{key}={mapping[key]}" for key in ordered) + "\\
 print(env_path.read_text(), end="")
 PY
 
-echo "[6/8] Esperando servicios internos..."
+echo "[6/9] Esperando servicios internos..."
 python3 - <<PY
 import socket
 import time
@@ -70,6 +74,7 @@ checks = [
     ("Redis", "$redis_ip", 6379),
     ("RabbitMQ", "$rabbitmq_ip", 5672),
     ("Redis Commander", "$redis_commander_ip", 8081),
+    ("Dozzle", "$dozzle_ip", 8080),
 ]
 pending = checks[:]
 deadline = time.time() + 45
@@ -91,31 +96,43 @@ if pending:
     raise SystemExit(f"Servicios no disponibles a tiempo: {names}")
 PY
 
-echo "[7/8] Publicando paneles para Windows..."
+echo "[7/9] Publicando paneles para Windows..."
 nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 15673 "$rabbitmq_ip" 15672 >"$RABBIT_UI_LOG" 2>&1 &
 nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 8082 "$redis_commander_ip" 8081 >"$REDIS_UI_LOG" 2>&1 &
+nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 8083 "$dozzle_ip" 8080 >"$DOZZLE_UI_LOG" 2>&1 &
 sleep 2
 
-echo "[8/9] Reiniciando la app..."
-pkill -f uvicorn || true
-. "$PROJECT_DIR/venv/bin/activate"
-: > "$APP_LOG"
-nohup uvicorn main:app --host :: --port 8014 >"$APP_LOG" 2>&1 &
-sleep 8
+echo "[8/9] Esperando la app en el contenedor..."
+python3 - <<'PY'
+import socket
+import time
+
+deadline = time.time() + 60
+while time.time() < deadline:
+    try:
+        with socket.create_connection(("127.0.0.1", 8014), timeout=2):
+            break
+    except OSError:
+        time.sleep(2)
+else:
+    raise SystemExit("La app no estuvo disponible a tiempo en el puerto 8014")
+PY
 
 echo "[9/9] Verificando servicios..."
 echo "--- App ---"
-curl -g -sS --max-time 10 http://[::1]:8014/health || true
+curl -sS --max-time 10 http://127.0.0.1:8014/health || true
 echo
 echo "--- RabbitMQ UI ---"
 curl -I -g --max-time 10 http://[::1]:15673/ || true
 echo "--- Redis Commander UI ---"
 curl -I -g --max-time 10 http://[::1]:8082/ || true
+echo "--- Dozzle UI ---"
+curl -I -g --max-time 10 http://[::1]:8083/ || true
 echo "--- Login admin ---"
 python3 - <<'PY'
 import json
 import urllib.request
-base = "http://[::1]:8014"
+base = "http://127.0.0.1:8014"
 req = urllib.request.Request(
     base + "/auth/login",
     data=json.dumps({"username": "admin", "password": "admin"}).encode(),
@@ -130,7 +147,7 @@ echo "--- Infra ---"
 python3 - <<'PY'
 import json
 import urllib.request
-base = "http://[::1]:8014"
+base = "http://127.0.0.1:8014"
 login_req = urllib.request.Request(
     base + "/auth/login",
     data=json.dumps({"username": "admin", "password": "admin"}).encode(),
@@ -146,4 +163,4 @@ PY
 echo "--- Docker ---"
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 echo "--- App log ---"
-tail -n 40 "$APP_LOG" || true
+docker logs --tail 40 proyecto1corte-app || true

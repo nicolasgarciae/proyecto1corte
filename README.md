@@ -14,6 +14,9 @@ Proyecto de reservas de transporte con FastAPI, MySQL, Redis y RabbitMQ.
 - Redis para cache y sesiones.
 - RabbitMQ para publicar eventos operativos.
 - `consumer.py` para procesar la cola y guardar actividad reciente en Redis.
+- Dozzle para observar logs de contenedores Docker desde un panel web.
+- Logs JSON con `log_id` UUID en la API y el consumer.
+- Contenedor `proyecto1corte-app` que inicia la API y el consumer juntos.
 
 ## Requisitos
 
@@ -86,10 +89,12 @@ docker compose up -d
 
 Servicios:
 
+- App + consumer en `http://127.0.0.1:8014`
 - Redis en `localhost:6380`
 - RabbitMQ AMQP en `localhost:5673`
 - Panel de RabbitMQ en `http://localhost:15673`
 - Redis Commander en `http://localhost:8082`
+- Dozzle en `http://localhost:8083`
 
 Credenciales del panel RabbitMQ:
 
@@ -97,6 +102,8 @@ Credenciales del panel RabbitMQ:
 - contrasena: `guest`
 
 Redis Commander no necesita credenciales adicionales en esta configuracion y se conecta al contenedor `redis` del mismo `docker compose`.
+
+Dozzle se conecta al socket de Docker en modo lectura para mostrar los logs de los contenedores del proyecto.
 
 Nota:
 
@@ -119,6 +126,27 @@ uvicorn main:app --reload --port 8014
 
 - `http://localhost:8000/`
 - o `http://localhost:8014/` si usaste otro puerto
+
+## Observabilidad basica
+
+Opcion A con Dozzle:
+
+```bash
+sudo ./start_all.sh
+```
+
+Luego abre `http://localhost:8083` para ver los logs de los contenedores. La API y el consumer corren juntos dentro de `proyecto1corte-app` y emiten logs JSON con un campo `log_id` UUID; los eventos publicados en RabbitMQ tambien guardan ese `log_id` para poder rastrearlos entre productor, cola, consumer y panel admin.
+
+## Contenedor de aplicacion
+
+El servicio `app` de Docker Compose construye la imagen local del proyecto y arranca dos procesos dentro del mismo contenedor:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8014
+python consumer.py
+```
+
+El contenedor usa `network_mode: host` para conectarse a MariaDB en `localhost:3306` y a los puertos publicados de Redis y RabbitMQ.
 
 ## Ejecutar el consumer
 
