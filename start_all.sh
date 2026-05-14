@@ -7,6 +7,7 @@ APP_LOG="/tmp/proyecto1corte-app.log"
 RABBIT_UI_LOG="/tmp/proyecto1corte-rabbitmq-ui.log"
 REDIS_UI_LOG="/tmp/proyecto1corte-redis-commander-ui.log"
 DOZZLE_UI_LOG="/tmp/proyecto1corte-dozzle-ui.log"
+PORTAINER_UI_LOG="/tmp/proyecto1corte-portainer-ui.log"
 
 echo "[1/9] Iniciando MariaDB..."
 service mariadb start >/dev/null 2>&1 || true
@@ -19,6 +20,7 @@ echo "[3/9] Liberando puertos locales de paneles..."
 pkill -f 'tcp_bridge.py :: 15673' || true
 pkill -f 'tcp_bridge.py :: 8082' || true
 pkill -f 'tcp_bridge.py :: 8083' || true
+pkill -f 'tcp_bridge.py :: 9443' || true
 pkill -f uvicorn || true
 sleep 1
 
@@ -31,6 +33,7 @@ redis_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}
 rabbitmq_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-rabbitmq)"
 redis_commander_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-redis-commander)"
 dozzle_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-dozzle)"
+portainer_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-portainer)"
 
 python3 - <<PY
 from pathlib import Path
@@ -75,6 +78,7 @@ checks = [
     ("RabbitMQ", "$rabbitmq_ip", 5672),
     ("Redis Commander", "$redis_commander_ip", 8081),
     ("Dozzle", "$dozzle_ip", 8080),
+    ("Portainer", "$portainer_ip", 9443),
 ]
 pending = checks[:]
 deadline = time.time() + 45
@@ -100,6 +104,7 @@ echo "[7/9] Publicando paneles para Windows..."
 nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 15673 "$rabbitmq_ip" 15672 >"$RABBIT_UI_LOG" 2>&1 &
 nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 8082 "$redis_commander_ip" 8081 >"$REDIS_UI_LOG" 2>&1 &
 nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 8083 "$dozzle_ip" 8080 >"$DOZZLE_UI_LOG" 2>&1 &
+nohup python3 "$PROJECT_DIR/tcp_bridge.py" :: 9443 "$portainer_ip" 9443 >"$PORTAINER_UI_LOG" 2>&1 &
 sleep 2
 
 echo "[8/9] Esperando la app en el contenedor..."
@@ -128,6 +133,8 @@ echo "--- Redis Commander UI ---"
 curl -I -g --max-time 10 http://[::1]:8082/ || true
 echo "--- Dozzle UI ---"
 curl -I -g --max-time 10 http://[::1]:8083/ || true
+echo "--- Portainer UI ---"
+curl -k -I -g --max-time 10 https://[::1]:9443/ || true
 echo "--- Login admin ---"
 python3 - <<'PY'
 import json

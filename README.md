@@ -15,6 +15,7 @@ Proyecto de reservas de transporte con FastAPI, MySQL, Redis y RabbitMQ.
 - RabbitMQ para publicar eventos operativos.
 - `consumer.py` para procesar la cola y guardar actividad reciente en Redis.
 - Dozzle para observar logs de contenedores Docker desde un panel web.
+- Portainer para ver y administrar servicios, contenedores, imagenes, volumenes y redes de Docker.
 - Logs JSON con `log_id` UUID en la API y el consumer.
 - Contenedor `proyecto1corte-app` que inicia la API y el consumer juntos.
 
@@ -95,6 +96,7 @@ Servicios:
 - Panel de RabbitMQ en `http://localhost:15673`
 - Redis Commander en `http://localhost:8082`
 - Dozzle en `http://localhost:8083`
+- Portainer en `https://localhost:9443`
 
 Credenciales del panel RabbitMQ:
 
@@ -104,6 +106,8 @@ Credenciales del panel RabbitMQ:
 Redis Commander no necesita credenciales adicionales en esta configuracion y se conecta al contenedor `redis` del mismo `docker compose`.
 
 Dozzle se conecta al socket de Docker en modo lectura para mostrar los logs de los contenedores del proyecto.
+
+Portainer se conecta al socket de Docker para mostrar los servicios activos y administrar contenedores, imagenes, volumenes y redes. La primera vez que abras `https://localhost:9443`, crea el usuario administrador inicial y selecciona el entorno local de Docker.
 
 Nota:
 
@@ -135,7 +139,7 @@ Opcion A con Dozzle:
 sudo ./start_all.sh
 ```
 
-Luego abre `http://localhost:8083` para ver los logs de los contenedores. La API y el consumer corren juntos dentro de `proyecto1corte-app` y emiten logs JSON con un campo `log_id` UUID; los eventos publicados en RabbitMQ tambien guardan ese `log_id` para poder rastrearlos entre productor, cola, consumer y panel admin.
+Luego abre `http://localhost:8083` para ver los logs de los contenedores y `https://localhost:9443` para ver los servicios activos en Portainer. La API y el consumer corren juntos dentro de `proyecto1corte-app` y emiten logs JSON con un campo `log_id` UUID; los eventos publicados en RabbitMQ tambien guardan ese `log_id` para poder rastrearlos entre productor, cola, consumer y panel admin.
 
 ## Contenedor de aplicacion
 
