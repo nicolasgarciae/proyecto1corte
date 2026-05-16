@@ -39,7 +39,8 @@ github-flow:
 	@echo "  6. Revisar, aprobar y hacer merge"
 
 up:
-	docker compose up -d --build
+	DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
+	DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 
 down:
 	docker compose down
@@ -49,7 +50,8 @@ logs:
 
 restart:
 	docker compose down
-	docker compose up -d --build
+	DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
+	DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 
 ps:
 	docker ps

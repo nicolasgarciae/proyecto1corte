@@ -37,7 +37,14 @@ Si estas en Windows, ejecuta estos comandos dentro de WSL.
 Opcion A: construir la imagen localmente desde el codigo clonado.
 
 ```bash
-docker compose up -d --build
+make up
+```
+
+Equivalente manual:
+
+```bash
+DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
+DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 ```
 
 Opcion B: usar la imagen publicada en DockerHub.
@@ -248,5 +255,23 @@ Si quieres reiniciar desde cero:
 
 ```bash
 docker compose down -v
-docker compose up -d --build
+make up
+```
+
+
+### Error: pull access denied for proyecto1corte-api
+
+Si aparece este error al ejecutar `make start` o `docker compose up`, significa que Docker intento descargar la imagen local `proyecto1corte-api:local` antes de construirla.
+
+Solucion:
+
+```bash
+DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
+DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
+```
+
+O simplemente usa:
+
+```bash
+make up
 ```

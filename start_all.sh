@@ -26,7 +26,8 @@ sleep 1
 
 echo "[4/9] Construyendo y levantando contenedores..."
 cd "$PROJECT_DIR"
-docker compose up -d --build
+DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
+DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 
 echo "[5/9] Sincronizando .env con IPs reales de Docker..."
 redis_ip="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' proyecto1corte-redis)"
