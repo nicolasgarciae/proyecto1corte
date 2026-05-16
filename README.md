@@ -17,14 +17,13 @@ Proyecto de reservas de transporte con FastAPI, MySQL, Redis y RabbitMQ.
 - Dozzle para observar logs de contenedores Docker desde un panel web.
 - Portainer para ver y administrar servicios, contenedores, imagenes, volumenes y redes de Docker.
 - Logs JSON con `log_id` UUID en la API y el consumer.
-- Contenedor `proyecto1corte-app` que inicia la API y el consumer juntos.
+- Contenedor `proyecto1corte-app` para la API y contenedor `proyecto1corte-worker` para el consumer.
 
 ## Requisitos
 
 - Python 3.9+
-- MySQL 8+
-- Redis
-- RabbitMQ
+- Docker y Docker Compose
+- WSL para ejecutar los comandos de despliegue
 - pip
 
 ## Instalacion
@@ -80,9 +79,21 @@ CREATE TABLE reservas (
 );
 ```
 
+## Despliegue con GitHub Flow + Docker + WSL
+
+La guia de despliegue del curso esta documentada en `DEPLOYMENT.md`. Incluye GitHub Flow, construccion de imagenes Docker, publicacion en DockerHub y ejecucion desde otra maquina.
+
+```bash
+make help
+make github-flow
+make build DOCKER_USERNAME=tu_usuario_dockerhub IMAGE_TAG=v1
+make push DOCKER_USERNAME=tu_usuario_dockerhub IMAGE_TAG=v1
+make deploy DOCKER_USERNAME=tu_usuario_dockerhub IMAGE_TAG=v1
+```
+
 ## Redis y RabbitMQ con Docker
 
-Se dejaron puertos alternos para evitar conflicto con servicios ya instalados fuera de Docker:
+El sistema completo queda en Docker Compose, incluyendo MySQL, Redis, RabbitMQ, API, worker y paneles:
 
 ```bash
 docker compose up -d
@@ -90,7 +101,9 @@ docker compose up -d
 
 Servicios:
 
-- App + consumer en `http://127.0.0.1:8014`
+- API en `http://127.0.0.1:8014`
+- Worker en el contenedor `proyecto1corte-worker`
+- MySQL en `localhost:3307` dentro de Docker
 - Redis en `localhost:6380`
 - RabbitMQ AMQP en `localhost:5673`
 - Panel de RabbitMQ en `http://localhost:15673`
@@ -139,7 +152,7 @@ Opcion A con Dozzle:
 sudo ./start_all.sh
 ```
 
-Luego abre `http://localhost:8083` para ver los logs de los contenedores y `https://localhost:9443` para ver los servicios activos en Portainer. La API y el consumer corren juntos dentro de `proyecto1corte-app` y emiten logs JSON con un campo `log_id` UUID; los eventos publicados en RabbitMQ tambien guardan ese `log_id` para poder rastrearlos entre productor, cola, consumer y panel admin.
+Luego abre `http://localhost:8083` para ver los logs de los contenedores y `https://localhost:9443` para ver los servicios activos en Portainer. La API corre en `proyecto1corte-app` y el consumer corre en `proyecto1corte-worker` y emiten logs JSON con un campo `log_id` UUID; los eventos publicados en RabbitMQ tambien guardan ese `log_id` para poder rastrearlos entre productor, cola, consumer y panel admin.
 
 ## Contenedor de aplicacion
 
@@ -150,7 +163,7 @@ uvicorn main:app --host 0.0.0.0 --port 8014
 python consumer.py
 ```
 
-El contenedor usa `network_mode: host` para conectarse a MariaDB en `localhost:3306` y a los puertos publicados de Redis y RabbitMQ.
+Los contenedores se comunican por la red interna de Docker Compose usando los nombres `mysql`, `redis` y `rabbitmq`. Hacia Windows se publican puertos alternos para evitar conflictos locales.
 
 ## Ejecutar el consumer
 

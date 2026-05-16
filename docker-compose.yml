@@ -1,21 +1,70 @@
 services:
   app:
+    image: ${DOCKER_IMAGE:-proyecto1corte-api:local}
     build: .
     container_name: proyecto1corte-app
-    network_mode: host
+    ports:
+      - "8014:8014"
     environment:
-      MYSQL_HOST: localhost
+      MYSQL_HOST: mysql
       MYSQL_PORT: "3306"
       MYSQL_USER: api_user
       MYSQL_PASSWORD: "123456"
       MYSQL_DB: transporte_db
-      REDIS_URL: redis://localhost:6380/0
-      RABBITMQ_URL: amqp://guest:guest@localhost:5673/
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       RABBITMQ_QUEUE: reservas_eventos
       LOG_LEVEL: INFO
     depends_on:
-      - redis
-      - rabbitmq
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: ${DOCKER_IMAGE:-proyecto1corte-api:local}
+    container_name: proyecto1corte-worker
+    command: python consumer.py
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: "123456"
+      MYSQL_DB: transporte_db
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: reservas_eventos
+      LOG_LEVEL: INFO
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: proyecto1corte-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: transporte_db
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: "123456"
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   redis:
@@ -23,6 +72,11 @@ services:
     container_name: proyecto1corte-redis
     ports:
       - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   rabbitmq:
@@ -30,6 +84,12 @@ services:
     container_name: proyecto1corte-rabbitmq
     ports:
       - "5673:5672"
+      - "15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
   redis-commander:
@@ -37,6 +97,8 @@ services:
     container_name: proyecto1corte-redis-commander
     environment:
       REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8082:8081"
     depends_on:
       - redis
     restart: unless-stopped
@@ -44,23 +106,27 @@ services:
   dozzle:
     image: amir20/dozzle:latest
     container_name: proyecto1corte-dozzle
+    ports:
+      - "8083:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       DOZZLE_NO_ANALYTICS: "true"
     depends_on:
-      - redis
-      - rabbitmq
-      - redis-commander
+      - app
+      - worker
     restart: unless-stopped
 
   portainer:
     image: portainer/portainer-ce:latest
     container_name: proyecto1corte-portainer
+    ports:
+      - "9443:9443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     restart: unless-stopped
 
 volumes:
+  mysql_data:
   portainer_data:
