@@ -45,7 +45,7 @@
       pointer-events: none;
     }
 
-    button, input {
+    button, input, select {
       font: inherit;
     }
 
@@ -473,7 +473,8 @@
       letter-spacing: 0.08em;
     }
 
-    .field input {
+    .field input,
+    .field select {
       width: 100%;
       padding: 14px 15px;
       border-radius: 16px;
@@ -483,7 +484,12 @@
       outline: none;
     }
 
-    .field input:focus {
+    .field select option {
+      color: #07111f;
+    }
+
+    .field input:focus,
+    .field select:focus {
       border-color: rgba(77, 215, 168, 0.55);
       box-shadow: 0 0 0 3px rgba(77, 215, 168, 0.12);
     }
@@ -577,6 +583,12 @@
       padding: 28px;
     }
 
+    .modal.reserve-modal {
+      width: min(100%, 920px);
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+    }
+
     .modal-head {
       display: flex;
       justify-content: space-between;
@@ -622,6 +634,163 @@
       color: var(--text);
     }
 
+    .reserve-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .bus-shell,
+    .payment-box {
+      border: 1px solid rgba(143, 164, 194, 0.16);
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .bus-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .bus-head strong,
+    .payment-box strong {
+      font-family: "Syne", sans-serif;
+      letter-spacing: -0.03em;
+    }
+
+    .seat-legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-right: 5px;
+      background: rgba(143, 164, 194, 0.24);
+    }
+
+    .legend-dot.free { background: rgba(77, 215, 168, 0.7); }
+    .legend-dot.selected { background: var(--accent-alt); }
+    .legend-dot.busy { background: rgba(255, 107, 107, 0.65); }
+
+    .bus-body {
+      position: relative;
+      border: 1px solid rgba(77, 215, 168, 0.22);
+      border-radius: 26px 26px 18px 18px;
+      padding: 52px 14px 18px;
+      background:
+        linear-gradient(180deg, rgba(77, 215, 168, 0.09), transparent 25%),
+        rgba(7, 17, 31, 0.74);
+    }
+
+    .driver-area {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .steering {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 4px solid rgba(143, 164, 194, 0.45);
+      box-shadow: inset 0 0 0 3px rgba(7, 17, 31, 0.88);
+    }
+
+    .seat-map {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(42px, 1fr)) 26px repeat(2, minmax(42px, 1fr));
+      gap: 10px;
+      align-items: center;
+    }
+
+    .seat-row-label {
+      display: none;
+    }
+
+    .aisle {
+      min-height: 42px;
+      border-left: 1px dashed rgba(143, 164, 194, 0.18);
+      justify-self: center;
+    }
+
+    .seat-btn {
+      min-height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(77, 215, 168, 0.28);
+      background: rgba(77, 215, 168, 0.14);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+    }
+
+    .seat-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(77, 215, 168, 0.75);
+    }
+
+    .seat-btn.selected {
+      background: var(--accent-alt);
+      border-color: var(--accent-alt);
+      color: #201102;
+    }
+
+    .seat-btn.occupied {
+      background: rgba(255, 107, 107, 0.14);
+      border-color: rgba(255, 107, 107, 0.24);
+      color: rgba(255, 224, 224, 0.58);
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+
+    .reserve-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .payment-box {
+      display: grid;
+      gap: 14px;
+    }
+
+    .payment-summary {
+      display: grid;
+      gap: 9px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(7, 17, 31, 0.52);
+      border: 1px solid rgba(143, 164, 194, 0.12);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .payment-summary div {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .payment-summary strong {
+      color: var(--text);
+    }
+
     .toast-wrap {
       position: fixed;
       right: 22px;
@@ -663,7 +832,8 @@
 
     @media (max-width: 1024px) {
       .hero,
-      .admin-grid {
+      .admin-grid,
+      .reserve-layout {
         grid-template-columns: 1fr;
       }
     }
@@ -700,6 +870,11 @@
       .nav-btn {
         width: 100%;
       }
+
+      .seat-map {
+        grid-template-columns: repeat(2, minmax(36px, 1fr)) 18px repeat(2, minmax(36px, 1fr));
+        gap: 8px;
+      }
     }
   </style>
 </head>
@@ -716,6 +891,7 @@
     <div class="header-right">
       <nav>
         <button class="nav-btn active" data-view="rutas">Rutas</button>
+        <button class="nav-btn hidden" data-view="mis-reservas" id="my-reservations-nav-btn">Mis reservas</button>
         <button class="nav-btn hidden" data-view="admin" id="admin-nav-btn">Panel Admin</button>
       </nav>
 
@@ -774,6 +950,24 @@
 
       <div class="routes-grid" id="rutas-container">
         <div class="loading"><div><div class="spinner"></div>Cargando rutas...</div></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-mis-reservas">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">Mis reservas</h3>
+          <p class="section-subtitle">Consulta tus reservas activas con ruta, asiento, fecha y estado de pago.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="refresh-my-reservations-btn">Actualizar reservas</button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-list" id="my-reservations-container">
+          <div class="empty">Inicia sesion para ver tus reservas.</div>
+        </div>
       </div>
     </section>
 
@@ -888,7 +1082,7 @@
   </div>
 
   <div class="modal-overlay" id="reserve-modal">
-    <div class="modal">
+    <div class="modal reserve-modal">
       <div class="modal-head">
         <div>
           <h3>Confirmar reserva</h3>
@@ -897,13 +1091,65 @@
         <button class="close-btn" id="close-reserve-modal">x</button>
       </div>
 
-      <div class="field">
-        <label for="reserve-passenger-name">Nombre del pasajero</label>
-        <input id="reserve-passenger-name" type="text" placeholder="Se llena con tu nombre, pero puedes ajustarlo" />
+      <div class="reserve-layout">
+        <section class="bus-shell">
+          <div class="bus-head">
+            <div>
+              <strong>Selecciona tu asiento</strong>
+              <p class="muted" id="reserve-seat-status">Asientos libres por dentro del autobus.</p>
+            </div>
+            <div class="seat-legend">
+              <span><i class="legend-dot free"></i>Libre</span>
+              <span><i class="legend-dot selected"></i>Seleccionado</span>
+              <span><i class="legend-dot busy"></i>Ocupado</span>
+            </div>
+          </div>
+          <div class="bus-body">
+            <div class="driver-area"><span>Conductor</span><span class="steering"></span></div>
+            <div class="seat-map" id="seat-map"></div>
+          </div>
+        </section>
+
+        <section class="reserve-form">
+          <div class="field">
+            <label for="reserve-passenger-name">Nombre del pasajero</label>
+            <input id="reserve-passenger-name" type="text" placeholder="Se llena con tu nombre, pero puedes ajustarlo" />
+          </div>
+
+          <div class="field">
+            <label for="reserve-phone">Telefono para aviso</label>
+            <input id="reserve-phone" type="tel" placeholder="Ej: 3001234567" />
+          </div>
+
+          <div class="field">
+            <label for="reserve-date">Fecha de reserva</label>
+            <input id="reserve-date" type="date" />
+          </div>
+
+          <div class="field">
+            <label for="reserve-payment-method">Modulo de pago</label>
+            <select id="reserve-payment-method">
+              <option value="">Selecciona un metodo</option>
+              <option value="Tarjeta">Tarjeta debito/credito</option>
+              <option value="PSE">PSE</option>
+              <option value="Nequi">Nequi</option>
+              <option value="Daviplata">Daviplata</option>
+            </select>
+          </div>
+
+          <div class="payment-box">
+            <strong>Pago de la reserva</strong>
+            <div class="payment-summary">
+              <div><span>Asiento</span><strong id="payment-seat">Sin seleccionar</strong></div>
+              <div><span>Valor reserva</span><strong id="payment-total">$0 COP</strong></div>
+              <div><span>Estado</span><strong id="payment-status">Pendiente</strong></div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <input type="hidden" id="reserve-route-id" />
-      <button class="submit-btn" id="reserve-submit-btn" style="margin-top: 18px; width: 100%;">Crear reserva</button>
+      <button class="submit-btn" id="reserve-submit-btn" style="margin-top: 18px; width: 100%;">Pagar y crear reserva</button>
     </div>
   </div>
 
@@ -913,6 +1159,7 @@
     const API = window.location.protocol.startsWith("http") ? window.location.origin : "http://localhost:8000";
     const TOKEN_KEY = "reserva_ya_token";
     const USER_KEY = "reserva_ya_user";
+    const RESERVATION_PRICE = 25000;
 
     const state = {
       rutas: [],
@@ -921,6 +1168,8 @@
       authMode: "login",
       token: localStorage.getItem(TOKEN_KEY) || "",
       user: null,
+      activeRoute: null,
+      selectedSeat: "",
     };
 
     function isLoggedIn() {
@@ -933,6 +1182,14 @@
 
     function formatRouteName(item) {
       return `${item.origen} -> ${item.destino}`;
+    }
+
+    function formatMoney(value) {
+      return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        maximumFractionDigits: 0,
+      }).format(value);
     }
 
     function toast(message, type = "success") {
@@ -995,6 +1252,7 @@
     function renderAuthState() {
       const userChip = document.getElementById("user-chip");
       const adminNav = document.getElementById("admin-nav-btn");
+      const myReservationsNav = document.getElementById("my-reservations-nav-btn");
       const loginBtn = document.getElementById("open-login-btn");
       const signInBtn = document.getElementById("open-signin-btn");
       const logoutBtn = document.getElementById("logout-btn");
@@ -1017,6 +1275,10 @@
       }
 
       adminNav.classList.toggle("hidden", !isAdmin());
+      myReservationsNav.classList.toggle("hidden", !isLoggedIn());
+      if (!isLoggedIn() && document.getElementById("view-mis-reservas").classList.contains("active")) {
+        activateView("rutas");
+      }
       if (!isAdmin() && document.getElementById("view-admin").classList.contains("active")) {
         activateView("rutas");
       }
@@ -1086,6 +1348,10 @@
     }
 
     function activateView(name) {
+      if (name === "mis-reservas" && !isLoggedIn()) {
+        toast("Debes iniciar sesion para ver tus reservas.", "error");
+        name = "rutas";
+      }
       if (name === "admin" && !isAdmin()) {
         toast("Solo el administrador puede abrir ese panel.", "error");
         name = "rutas";
@@ -1099,6 +1365,7 @@
       });
 
       if (name === "rutas") loadRutas();
+      if (name === "mis-reservas") loadMyReservations();
       if (name === "admin") loadAdminPanel();
     }
 
@@ -1213,10 +1480,32 @@
           <div class="row-main">
             <strong>${reserva.nombre_pasajero}</strong>
             <span>${formatRouteName(reserva)}</span>
-            <small>Usuario: ${reserva.usuario_reserva || "sin cuenta"} | ID ${reserva.id}</small>
+            <small>
+              Asiento: ${reserva.asiento || "sin asignar"} | Fecha: ${reserva.fecha_reserva || "sin fecha"} | Tel: ${reserva.telefono || "sin telefono"}
+            </small>
+            <small>Pago: ${reserva.estado_pago || "pendiente"} por ${reserva.metodo_pago || "sin metodo"} | Usuario: ${reserva.usuario_reserva || "sin cuenta"} | ID ${reserva.id}</small>
           </div>
           <div class="panel-actions">
             <button class="danger-btn" onclick="deleteReservation('${reserva.id}', '${reserva.nombre_pasajero.replace(/'/g, "\\'")}')">Cancelar</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderMyReservations(reservas) {
+      const container = document.getElementById("my-reservations-container");
+      if (!reservas.length) {
+        container.innerHTML = '<div class="empty">Aun no tienes reservas activas.</div>';
+        return;
+      }
+
+      container.innerHTML = reservas.map((reserva) => `
+        <div class="table-row">
+          <div class="row-main">
+            <strong>${formatRouteName(reserva)}</strong>
+            <span>Asiento ${reserva.asiento || "sin asignar"} | Fecha ${reserva.fecha_reserva || "sin fecha"}</span>
+            <small>Pasajero: ${reserva.nombre_pasajero} | Tel: ${reserva.telefono || "sin telefono"}</small>
+            <small>Pago: ${reserva.estado_pago || "pendiente"} por ${reserva.metodo_pago || "sin metodo"} | ID ${reserva.id}</small>
           </div>
         </div>
       `).join("");
@@ -1253,10 +1542,70 @@
       document.getElementById("auth-submit-btn").textContent = registerMode ? "Crear cuenta" : "Entrar";
     }
 
+    function seatLabel(index) {
+      const row = Math.floor(index / 4);
+      const column = (index % 4) + 1;
+      return `${String.fromCharCode(65 + row)}${column}`;
+    }
+
+    function updatePaymentSummary() {
+      document.getElementById("payment-seat").textContent = state.selectedSeat || "Sin seleccionar";
+      document.getElementById("payment-total").textContent = state.selectedSeat ? formatMoney(RESERVATION_PRICE) : "$0 COP";
+      document.getElementById("payment-status").textContent = state.selectedSeat ? "Listo para pagar" : "Pendiente";
+      document.getElementById("reserve-seat-status").textContent = state.selectedSeat
+        ? `Asiento ${state.selectedSeat} seleccionado.`
+        : "Asientos libres por dentro del autobus.";
+    }
+
+    function renderSeatMap(ruta) {
+      const container = document.getElementById("seat-map");
+      const occupiedSeats = new Set(ruta.asientos_ocupados || []);
+      const seats = Array.from({ length: Number(ruta.capacidad || 0) }, (_, index) => seatLabel(index));
+      container.innerHTML = "";
+
+      seats.forEach((label, index) => {
+        if (index > 0 && index % 4 === 2) {
+          const aisle = document.createElement("div");
+          aisle.className = "aisle";
+          container.appendChild(aisle);
+        }
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "seat-btn";
+        button.textContent = label;
+        button.dataset.seat = label;
+        button.setAttribute("aria-label", `Asiento ${label}`);
+
+        if (occupiedSeats.has(label)) {
+          button.classList.add("occupied");
+          button.disabled = true;
+          button.title = "Asiento ocupado";
+        }
+
+        button.addEventListener("click", () => {
+          state.selectedSeat = label;
+          document.querySelectorAll(".seat-btn").forEach((seat) => {
+            seat.classList.toggle("selected", seat.dataset.seat === label);
+          });
+          updatePaymentSummary();
+        });
+
+        container.appendChild(button);
+      });
+      updatePaymentSummary();
+    }
+
     function openReserveModal(ruta) {
       document.getElementById("reserve-route-info").textContent = `${formatRouteName(ruta)} | ${ruta.asientos_disponibles} asientos disponibles`;
       document.getElementById("reserve-route-id").value = ruta.id;
       document.getElementById("reserve-passenger-name").value = state.user?.full_name || "";
+      document.getElementById("reserve-phone").value = "";
+      document.getElementById("reserve-payment-method").value = "";
+      document.getElementById("reserve-date").valueAsDate = new Date();
+      state.activeRoute = ruta;
+      state.selectedSeat = "";
+      renderSeatMap(ruta);
       openModal("reserve-modal");
     }
 
@@ -1305,6 +1654,24 @@
         document.getElementById("admin-rutas-container").innerHTML = `<div class="empty">No se pudo cargar el panel.<br><small>${error.message}</small></div>`;
         document.getElementById("admin-reservas-container").innerHTML = '<div class="empty">Sin datos de reservas.</div>';
         document.getElementById("admin-eventos-container").innerHTML = '<div class="empty">Sin eventos disponibles.</div>';
+      }
+    }
+
+    async function loadMyReservations() {
+      if (!isLoggedIn()) {
+        document.getElementById("my-reservations-container").innerHTML = '<div class="empty">Inicia sesion para ver tus reservas.</div>';
+        return;
+      }
+
+      const container = document.getElementById("my-reservations-container");
+      container.innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando tus reservas...</div></div>';
+      try {
+        const response = await apiFetch("/reservas/mias", {}, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        renderMyReservations(data);
+      } catch (error) {
+        container.innerHTML = `<div class="empty">No se pudieron cargar tus reservas.<br><small>${error.message}</small></div>`;
       }
     }
 
@@ -1413,19 +1780,38 @@
     async function createReservation() {
       const rutaId = document.getElementById("reserve-route-id").value;
       const passengerName = document.getElementById("reserve-passenger-name").value.trim();
+      const phone = document.getElementById("reserve-phone").value.trim();
+      const bookingDate = document.getElementById("reserve-date").value;
+      const paymentMethod = document.getElementById("reserve-payment-method").value;
 
-      setButtonLoading("reserve-submit-btn", "Reservando...", true);
+      if (!passengerName || !phone || !bookingDate || !state.selectedSeat || !paymentMethod) {
+        toast("Completa pasajero, telefono, fecha, asiento y metodo de pago.", "error");
+        return;
+      }
+
+      setButtonLoading("reserve-submit-btn", "Procesando pago...", true);
       try {
         const response = await apiFetch("/reservas", {
           method: "POST",
           headers: { ...authHeaders({ "Content-Type": "application/json" }) },
-          body: JSON.stringify({ ruta_id: rutaId, nombre_pasajero: passengerName }),
+          body: JSON.stringify({
+            ruta_id: rutaId,
+            nombre_pasajero: passengerName,
+            telefono: phone,
+            fecha_reserva: bookingDate,
+            asiento: state.selectedSeat,
+            metodo_pago: paymentMethod,
+          }),
         }, true);
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
-        toast("Reserva creada correctamente.");
+        toast(`Reserva pagada. Asiento ${state.selectedSeat} confirmado.`);
         closeModal("reserve-modal");
-        await Promise.all([loadRutas(), isAdmin() ? loadAdminPanel() : Promise.resolve()]);
+        await Promise.all([
+          loadRutas(),
+          document.getElementById("view-mis-reservas").classList.contains("active") ? loadMyReservations() : Promise.resolve(),
+          isAdmin() ? loadAdminPanel() : Promise.resolve(),
+        ]);
       } catch (error) {
         toast(error.message, "error");
       } finally {
@@ -1482,6 +1868,7 @@
       document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
       document.getElementById("close-reserve-modal").addEventListener("click", () => closeModal("reserve-modal"));
       document.getElementById("refresh-routes-btn").addEventListener("click", loadRutas);
+      document.getElementById("refresh-my-reservations-btn").addEventListener("click", loadMyReservations);
       document.getElementById("refresh-admin-btn").addEventListener("click", loadAdminPanel);
       document.getElementById("btn-admin-ruta").addEventListener("click", createRouteFromAdmin);
       document.getElementById("auth-submit-btn").addEventListener("click", submitAuth);

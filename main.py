@@ -3,7 +3,7 @@ import json
 import secrets
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -45,6 +45,10 @@ class RutaUpdate(BaseModel):
 class Reserva(BaseModel):
     nombre_pasajero: Optional[str] = None
     ruta_id: str
+    telefono: str
+    fecha_reserva: date
+    asiento: str
+    metodo_pago: str
 
 
 class ReservaUpdate(BaseModel):
@@ -203,6 +207,22 @@ def normalize_username(value: str) -> str:
     return normalize_text(value).lower()
 
 
+def seat_to_index(seat: str) -> Optional[int]:
+    if len(seat) < 2 or not seat[0].isalpha() or not seat[1:].isdigit():
+        return None
+    row = ord(seat[0].upper()) - ord("A")
+    column = int(seat[1:])
+    if row < 0 or column < 1 or column > 4:
+        return None
+    return row * 4 + column
+
+
+def index_to_seat(index: int) -> str:
+    row = (index - 1) // 4
+    column = ((index - 1) % 4) + 1
+    return f"{chr(ord('A') + row)}{column}"
+
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
@@ -247,6 +267,24 @@ async def ensure_user_schema():
         if not user_id_column:
             await cursor.execute("ALTER TABLE reservas ADD COLUMN user_id VARCHAR(36) NULL")
 
+        reserva_columns = {
+            "telefono": "ALTER TABLE reservas ADD COLUMN telefono VARCHAR(30) NULL",
+            "fecha_reserva": "ALTER TABLE reservas ADD COLUMN fecha_reserva DATE NULL",
+            "asiento": "ALTER TABLE reservas ADD COLUMN asiento VARCHAR(8) NULL",
+            "metodo_pago": "ALTER TABLE reservas ADD COLUMN metodo_pago VARCHAR(30) NULL",
+            "estado_pago": "ALTER TABLE reservas ADD COLUMN estado_pago VARCHAR(20) NOT NULL DEFAULT 'pagado'",
+        }
+        for column_name, alter_query in reserva_columns.items():
+            await cursor.execute(f"SHOW COLUMNS FROM reservas LIKE '{column_name}'")
+            column_exists = await cursor.fetchone()
+            if not column_exists:
+                await cursor.execute(alter_query)
+
+        await cursor.execute("SHOW INDEX FROM reservas WHERE Key_name='idx_reservas_ruta_asiento'")
+        seat_index = await cursor.fetchone()
+        if not seat_index:
+            await cursor.execute("CREATE UNIQUE INDEX idx_reservas_ruta_asiento ON reservas (ruta_id, asiento)")
+
         await cursor.execute("SELECT id FROM users WHERE username=%s", (ADMIN_USERNAME,))
         admin_user = await cursor.fetchone()
         if not admin_user:
@@ -287,7 +325,7 @@ async def set_cached_json(request: Request, key: str, payload, ttl: int = CACHE_
     if redis_client is None:
         return
 
-    await redis_client.set(key, json.dumps(payload), ex=ttl)
+    await redis_client.set(key, json.dumps(payload, default=str), ex=ttl)
 
 
 async def invalidate_cache(request: Request):
@@ -422,7 +460,8 @@ async def get_routes_with_stats(conn) -> list[dict]:
                    rutas.origen,
                    rutas.destino,
                    rutas.capacidad,
-                   COUNT(reservas.id) AS reservas_actuales
+                   COUNT(reservas.id) AS reservas_actuales,
+                   GROUP_CONCAT(reservas.asiento ORDER BY reservas.asiento SEPARATOR ',') AS asientos_ocupados_raw
             FROM rutas
             LEFT JOIN reservas ON reservas.ruta_id = rutas.id
             GROUP BY rutas.id, rutas.origen, rutas.destino, rutas.capacidad
@@ -439,19 +478,37 @@ async def get_routes_with_stats(conn) -> list[dict]:
         ruta["reservas_actuales"] = reservas_actuales
         ruta["asientos_disponibles"] = max(capacidad - reservas_actuales, 0)
         ruta["ocupacion_porcentaje"] = round((reservas_actuales / capacidad) * 100, 2) if capacidad else 0
+        raw_seats = ruta.pop("asientos_ocupados_raw", "") or ""
+        occupied_seats = [seat for seat in raw_seats.split(",") if seat]
+        missing_legacy_seats = max(reservas_actuales - len(occupied_seats), 0)
+        candidate_index = 1
+        while missing_legacy_seats > 0 and candidate_index <= capacidad:
+            candidate = index_to_seat(candidate_index)
+            if candidate not in occupied_seats:
+                occupied_seats.append(candidate)
+                missing_legacy_seats -= 1
+            candidate_index += 1
+        ruta["asientos_ocupados"] = occupied_seats
 
     return rutas
 
 
-async def get_reservations(conn) -> list[dict]:
+async def get_reservations(conn, user_id: Optional[str] = None) -> list[dict]:
     cursor = await conn.cursor(aiomysql.DictCursor)
     try:
+        where_clause = "WHERE reservas.user_id=%s" if user_id else ""
+        params = (user_id,) if user_id else ()
         await cursor.execute(
-            """
+            f"""
             SELECT reservas.id,
                    reservas.nombre_pasajero,
                    reservas.ruta_id,
                    reservas.user_id,
+                   reservas.telefono,
+                   reservas.fecha_reserva,
+                   reservas.asiento,
+                   reservas.metodo_pago,
+                   reservas.estado_pago,
                    rutas.origen,
                    rutas.destino,
                    users.username AS usuario_reserva,
@@ -459,8 +516,10 @@ async def get_reservations(conn) -> list[dict]:
             FROM reservas
             JOIN rutas ON reservas.ruta_id = rutas.id
             LEFT JOIN users ON reservas.user_id = users.id
+            {where_clause}
             ORDER BY reservas.nombre_pasajero, rutas.origen, rutas.destino
-            """
+            """,
+            params,
         )
         return await cursor.fetchall()
     finally:
@@ -750,13 +809,51 @@ async def crear_reserva(reserva: Reserva, request: Request):
             raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad maxima")
 
         passenger_name = normalize_text(reserva.nombre_pasajero or current_user["full_name"] or current_user["username"])
+        phone = normalize_text(reserva.telefono)
+        booking_date = reserva.fecha_reserva.isoformat()
+        seat = normalize_text(reserva.asiento).upper()
+        payment_method = normalize_text(reserva.metodo_pago)
+
+        if not phone or not booking_date or not seat or not payment_method:
+            raise HTTPException(status_code=400, detail="Telefono, fecha, asiento y metodo de pago son obligatorios")
+
+        seat_index = seat_to_index(seat)
+        if seat_index is None or seat_index > capacidad:
+            raise HTTPException(status_code=400, detail="El asiento seleccionado no existe para esta ruta")
+
+        await cursor.execute(
+            "SELECT id FROM reservas WHERE ruta_id=%s AND asiento=%s FOR UPDATE",
+            (reserva.ruta_id, seat),
+        )
+        if await cursor.fetchone():
+            raise HTTPException(status_code=409, detail="Ese asiento ya fue reservado en esta ruta")
 
         await cursor.execute(
             """
-            INSERT INTO reservas (id, nombre_pasajero, ruta_id, user_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO reservas (
+                id,
+                nombre_pasajero,
+                ruta_id,
+                user_id,
+                telefono,
+                fecha_reserva,
+                asiento,
+                metodo_pago,
+                estado_pago
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (reserva_id, passenger_name, reserva.ruta_id, current_user["id"]),
+            (
+                reserva_id,
+                passenger_name,
+                reserva.ruta_id,
+                current_user["id"],
+                phone,
+                booking_date,
+                seat,
+                payment_method,
+                "pagado",
+            ),
         )
         await conn.commit()
     finally:
@@ -771,6 +868,11 @@ async def crear_reserva(reserva: Reserva, request: Request):
             "id": reserva_id,
             "nombre_pasajero": passenger_name,
             "ruta_id": reserva.ruta_id,
+            "telefono": phone,
+            "fecha_reserva": booking_date,
+            "asiento": seat,
+            "metodo_pago": payment_method,
+            "estado_pago": "pagado",
             "actor": current_user["username"],
         },
     )
@@ -792,6 +894,19 @@ async def obtener_reservas(request: Request):
         conn.close()
 
     await set_cached_json(request, "reservas:list", reservas)
+    return reservas
+
+
+@app.get("/reservas/mias")
+async def obtener_mis_reservas(request: Request):
+    current_user = await require_user(request)
+
+    conn = await get_connection()
+    try:
+        reservas = await get_reservations(conn, user_id=current_user["id"])
+    finally:
+        conn.close()
+
     return reservas
 
 
