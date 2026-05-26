@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reserva Ya - Acceso y Operaciones</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
       --bg: #07111f;
@@ -24,6 +27,8 @@
 
     body {
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       font-family: "DM Sans", sans-serif;
       color: var(--text);
       background:
@@ -145,9 +150,22 @@
       border-color: transparent;
     }
 
-    .pill-btn,
-    .ghost-btn {
+    .pill-btn {
       border-color: rgba(143, 164, 194, 0.16);
+    }
+
+    .ghost-btn {
+      border-color: rgba(143, 164, 194, 0.32);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ghost-btn:hover {
+      border-color: rgba(143, 164, 194, 0.6);
+      color: var(--text);
+      background: rgba(143, 164, 194, 0.07);
     }
 
     .danger-btn {
@@ -830,51 +848,477 @@
       to { transform: rotate(360deg); }
     }
 
+    .status-pill.warn {
+      color: var(--accent-alt);
+      background: rgba(255, 159, 67, 0.12);
+      border-color: rgba(255, 159, 67, 0.2);
+    }
+
+    .price-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(77, 215, 168, 0.1);
+      border: 1px solid rgba(77, 215, 168, 0.22);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .route-cities {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .city-name {
+      font-family: "Syne", sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .city-arrow {
+      color: var(--accent);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .route-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .occupancy-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .pill-btn:disabled,
+    .pill-btn.primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .modal.map-modal {
+      width: min(100%, 840px);
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+    }
+
+    #route-map {
+      width: 100%;
+      height: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 4px;
+    }
+
+    .map-placeholder {
+      width: 100%;
+      height: 420px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px dashed rgba(143,164,194,0.18);
+      color: var(--muted);
+    }
+
+    .route-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .steps-bar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.35;
+      transition: opacity 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .step.active { opacity: 1; }
+    .step.done   { opacity: 0.65; }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(143,164,194,0.3);
+      background: rgba(143,164,194,0.1);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+    }
+
+    .step.active .step-num {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #05231c;
+    }
+
+    .step.done .step-num {
+      background: rgba(77,215,168,0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .step-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .step-connector {
+      flex: 1;
+      height: 1px;
+      background: rgba(143,164,194,0.18);
+      margin: 0 12px;
+    }
+
+    .trip-summary-card {
+      padding: 13px 16px;
+      border-radius: 16px;
+      background: rgba(77,215,168,0.05);
+      border: 1px solid rgba(77,215,168,0.18);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .trip-summary-card .city-name { font-size: 15px; }
+
+    .trip-details {
+      display: flex;
+      gap: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .trip-details strong { color: var(--accent); font-weight: 700; }
+
+    .field.has-error input,
+    .field.has-error select {
+      border-color: rgba(255,107,107,0.65) !important;
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.1) !important;
+    }
+
+    .field-error-msg {
+      font-size: 12px;
+      color: var(--danger);
+      margin-top: 3px;
+    }
+
+    @keyframes paymentPulse {
+      0%   { box-shadow: 0 0 0 0   rgba(77,215,168,0.45); }
+      50%  { box-shadow: 0 0 0 10px rgba(77,215,168,0.08); }
+      100% { box-shadow: 0 0 0 0   rgba(77,215,168,0); }
+    }
+
+    .payment-box.pulse { animation: paymentPulse 0.5s ease; }
+
+    .route-search {
+      position: relative;
+      margin-bottom: 4px;
+    }
+
+    .route-search svg {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      flex-shrink: 0;
+    }
+
+    .route-search input {
+      width: 100%;
+      padding: 13px 20px 13px 46px;
+      border-radius: 16px;
+      border: 1px solid rgba(143,164,194,0.18);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      outline: none;
+      font-size: 15px;
+      font-family: inherit;
+    }
+
+    .route-search input::placeholder { color: var(--muted); }
+
+    .route-search input:focus {
+      border-color: rgba(77,215,168,0.5);
+      box-shadow: 0 0 0 3px rgba(77,215,168,0.1);
+    }
+
+    .route-search input:focus + svg,
+    .route-search:focus-within svg {
+      color: var(--accent);
+    }
+
+    .search-empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      background: rgba(7, 17, 31, 0.6);
+      backdrop-filter: blur(10px);
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .footer-brand-mark {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      color: #05231c;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .footer-copy {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 480px) {
+      .footer-inner {
+        padding: 20px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+    }
+
+    .hero-visual {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .hero-visual svg {
+      width: 100%;
+      max-width: 440px;
+      height: auto;
+      overflow: visible;
+      filter: drop-shadow(0 0 40px rgba(77,215,168,0.07));
+    }
+
+    @keyframes hero-bus-float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-14px); }
+    }
+    @keyframes hero-pulse-ring {
+      0%   { transform: scale(1);   opacity: 0.55; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    @keyframes hero-sparkle {
+      0%, 100% { opacity: 0.25; }
+      50%       { opacity: 0.85; }
+    }
+
+    .hero-bus    { animation: hero-bus-float   3.8s ease-in-out infinite; }
+    .hero-pulse  { transform-box: fill-box; transform-origin: center;
+                   animation: hero-pulse-ring  2.6s ease-out  infinite; }
+    .hero-sp1    { animation: hero-sparkle 2.1s ease-in-out infinite; }
+    .hero-sp2    { animation: hero-sparkle 2.8s ease-in-out infinite 0.6s; }
+    .hero-sp3    { animation: hero-sparkle 3.4s ease-in-out infinite 1.2s; }
+
+    /* ── Tablet landscape ── */
     @media (max-width: 1024px) {
       .hero,
       .admin-grid,
       .reserve-layout {
         grid-template-columns: 1fr;
       }
+      .hero-visual { display: none; }
     }
 
-    @media (max-width: 720px) {
+    /* ── Tablet portrait ── */
+    @media (max-width: 768px) {
       header,
       .layout {
-        padding-left: 18px;
-        padding-right: 18px;
+        padding-left: 20px;
+        padding-right: 20px;
       }
 
       header {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-top: 16px;
+        padding-bottom: 16px;
       }
 
-      .hero-stats,
-      .form-grid {
-        grid-template-columns: 1fr;
+      .header-right {
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
       }
+
+      nav {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+      }
+      nav::-webkit-scrollbar { display: none; }
+
+      .nav-btn { white-space: nowrap; flex-shrink: 0; }
+
+      #open-signin-btn,
+      #open-login-btn,
+      #logout-btn { flex: 1 1 auto; }
+
+      .hero-stats { grid-template-columns: repeat(3, 1fr); }
+
+      .form-grid { grid-template-columns: 1fr; }
 
       .section-head,
-      .panel-head,
-      .table-row,
-      .header-right {
-        flex-direction: column;
-        align-items: stretch;
-      }
+      .panel-head { flex-direction: column; align-items: flex-start; gap: 12px; }
 
-      .submit-btn,
-      .pill-btn,
-      .ghost-btn,
-      .danger-btn,
-      .nav-btn {
-        width: 100%;
+      .table-row { flex-direction: column; gap: 10px; }
+
+      .modal-box {
+        padding: 28px 22px;
+        border-radius: 22px;
+        max-height: 92vh;
+        overflow-y: auto;
       }
 
       .seat-map {
         grid-template-columns: repeat(2, minmax(36px, 1fr)) 18px repeat(2, minmax(36px, 1fr));
         gap: 8px;
       }
+
+      .submit-btn,
+      .pill-btn,
+      .ghost-btn,
+      .danger-btn { width: 100%; }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      header,
+      .layout {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      header { padding-top: 14px; padding-bottom: 14px; }
+
+      .layout { padding-top: 32px; padding-bottom: 48px; }
+
+      .brand h1 { font-size: 18px; }
+      .brand p  { font-size: 12px; }
+
+      .hero-stats { grid-template-columns: 1fr 1fr; }
+      .hero-stats .stat-box:last-child { grid-column: 1 / -1; }
+
+      .routes-grid { grid-template-columns: 1fr; }
+
+      .route-meta { flex-wrap: wrap; gap: 6px; }
+
+      .route-actions { flex-direction: column; gap: 8px; }
+      .route-actions .pill-btn,
+      .route-actions .ghost-btn { width: 100%; text-align: center; }
+
+      .steps-bar { gap: 4px; }
+      .step-label { font-size: 10px; }
+      .step-connector { width: 16px; min-width: 16px; }
+
+      .trip-details { flex-wrap: wrap; gap: 6px; }
+
+      .modal-overlay { padding: 8px; }
+      .modal-box {
+        padding: 20px 16px;
+        border-radius: 18px;
+        max-height: 96vh;
+      }
+
+      .reserve-layout { gap: 14px; }
+
+      .payment-box { padding: 14px; }
+
+      .seat-map {
+        grid-template-columns: repeat(2, minmax(30px, 1fr)) 12px repeat(2, minmax(30px, 1fr));
+        gap: 6px;
+      }
+      .seat { font-size: 12px; }
+
+      .section-title { font-size: clamp(1.3rem, 5vw, 1.8rem); }
+
+      #route-map { height: 220px; }
+
+      .table-card,
+      .admin-panel { padding: 16px; }
+
+      .row-action { flex-direction: column; gap: 6px; }
+      .row-action button { width: 100%; }
+
+      .route-search input { padding: 11px 16px 11px 42px; font-size: 14px; }
+
+      .btn-label { display: none; }
     }
   </style>
 </head>
@@ -906,8 +1350,8 @@
     <section class="hero">
       <div class="hero-copy">
         <div class="eyebrow">Reservas con acceso</div>
-        <h2>Inicia sesion para <span>reservar</span></h2>
-        <p>
+        <h2 id="hero-title">Inicia sesion para <span>reservar</span></h2>
+        <p id="hero-subtitle">
           Los usuarios registrados pueden consultar rutas y crear reservas.
         </p>
         <div class="hero-stats" id="hero-stats">
@@ -917,20 +1361,98 @@
         </div>
       </div>
 
-      <aside class="hero-side">
-        <h3 id="hero-side-title">Acceso para reservar</h3>
-        <p id="hero-side-copy">Crea una cuenta o entra con tu usuario para habilitar el flujo de reserva.</p>
-        <div class="hero-list" id="hero-list">
-          <div class="hero-item">
-            <div>
-              <strong>Acceso personal</strong>
-              <span>Inicia sesion o crea tu cuenta para reservar de forma segura.</span>
-            </div>
-            <span class="small-pill">Acceder</span>
-          </div>
-          
-        </div>
-      </aside>
+      <div class="hero-visual" aria-hidden="true">
+        <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" fill="none">
+          <defs>
+            <radialGradient id="hg-green" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#4dd7a8" stop-opacity="0.2"/>
+              <stop offset="100%" stop-color="#4dd7a8" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="hg-orange" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#ff9f43" stop-opacity="0.18"/>
+              <stop offset="100%" stop-color="#ff9f43" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <!-- Background glows -->
+          <ellipse cx="72" cy="218" rx="90" ry="75" fill="url(#hg-green)"/>
+          <ellipse cx="328" cy="155" rx="88" ry="75" fill="url(#hg-orange)"/>
+
+          <!-- Dashed route path -->
+          <path d="M72 218 C 115 155 168 108 208 114 C 255 121 292 148 328 155"
+                stroke="rgba(77,215,168,0.38)" stroke-width="2.5"
+                stroke-dasharray="8 5" stroke-linecap="round"/>
+
+          <!-- City: Bogota (origin) -->
+          <circle class="hero-pulse" cx="72" cy="218" r="19"
+                  stroke="#4dd7a8" stroke-width="1.5" opacity="0.55"/>
+          <circle cx="72" cy="218" r="11" fill="rgba(77,215,168,0.15)"/>
+          <circle cx="72" cy="218" r="6"  fill="#4dd7a8"/>
+          <text x="85" y="222" fill="#8fa4c2" font-size="11.5"
+                font-family="DM Sans,sans-serif" font-weight="500">Bogotá</text>
+
+          <!-- City: Manizales (waypoint) -->
+          <circle cx="208" cy="114" r="9"  fill="rgba(77,215,168,0.14)"/>
+          <circle cx="208" cy="114" r="4.5" fill="#4dd7a8" opacity="0.8"/>
+          <text x="219" y="118" fill="#8fa4c2" font-size="10.5"
+                font-family="DM Sans,sans-serif">Manizales</text>
+
+          <!-- City: Medellin (destination) -->
+          <circle cx="328" cy="155" r="11" fill="rgba(255,159,67,0.15)"/>
+          <circle cx="328" cy="155" r="6"  fill="#ff9f43"/>
+          <text x="340" y="159" fill="#8fa4c2" font-size="11.5"
+                font-family="DM Sans,sans-serif" font-weight="500">Medellín</text>
+
+          <!-- Bus (floating) -->
+          <g class="hero-bus" transform="translate(150,114)">
+            <!-- Motion lines -->
+            <line x1="-6"  y1="15" x2="-20" y2="15" stroke="#4dd7a8" stroke-width="1.5" stroke-linecap="round" opacity="0.35"/>
+            <line x1="-6"  y1="22" x2="-14" y2="22" stroke="#4dd7a8" stroke-width="1"   stroke-linecap="round" opacity="0.2"/>
+            <!-- Shadow -->
+            <ellipse cx="27" cy="48" rx="25" ry="4" fill="rgba(0,0,0,0.22)"/>
+            <!-- Body -->
+            <rect x="0" y="0" width="54" height="36" rx="8"
+                  fill="rgba(7,17,31,0.96)" stroke="#4dd7a8" stroke-width="1.5"/>
+            <!-- Front stripe -->
+            <rect x="0" y="0" width="7" height="36" rx="8" fill="rgba(77,215,168,0.18)"/>
+            <!-- Windows -->
+            <rect x="13" y="7"  width="11" height="13" rx="3"
+                  fill="rgba(77,215,168,0.22)" stroke="rgba(77,215,168,0.45)" stroke-width="0.8"/>
+            <rect x="29" y="7"  width="11" height="13" rx="3"
+                  fill="rgba(77,215,168,0.22)" stroke="rgba(77,215,168,0.45)" stroke-width="0.8"/>
+            <rect x="44" y="7"  width="8"  height="13" rx="3"
+                  fill="rgba(77,215,168,0.14)" stroke="rgba(77,215,168,0.3)"  stroke-width="0.8"/>
+            <!-- Headlight -->
+            <circle cx="3" cy="22" r="2.5" fill="#ff9f43" opacity="0.9"/>
+            <!-- Destination sign -->
+            <rect x="13" y="24" width="28" height="7" rx="2" fill="rgba(77,215,168,0.11)"/>
+            <rect x="15" y="25.5" width="14" height="4" rx="1" fill="rgba(77,215,168,0.45)"/>
+            <!-- Wheels -->
+            <circle cx="13" cy="40" r="7.5" fill="rgba(5,12,22,0.95)" stroke="#4dd7a8" stroke-width="1.5"/>
+            <circle cx="13" cy="40" r="3.5" fill="rgba(77,215,168,0.35)"/>
+            <circle cx="41" cy="40" r="7.5" fill="rgba(5,12,22,0.95)" stroke="#4dd7a8" stroke-width="1.5"/>
+            <circle cx="41" cy="40" r="3.5" fill="rgba(77,215,168,0.35)"/>
+          </g>
+
+          <!-- Sparkle dots -->
+          <circle class="hero-sp1" cx="148" cy="58"  r="2.2" fill="#4dd7a8"/>
+          <circle class="hero-sp2" cx="268" cy="75"  r="1.8" fill="#ff9f43"/>
+          <circle class="hero-sp3" cx="352" cy="208" r="2.2" fill="#4dd7a8"/>
+          <circle class="hero-sp1" cx="38"  cy="158" r="1.8" fill="#ff9f43"/>
+          <circle class="hero-sp2" cx="292" cy="232" r="2"   fill="#4dd7a8"/>
+
+          <!-- Cross sparkles -->
+          <g class="hero-sp3">
+            <line x1="243" y1="52" x2="249" y2="52" stroke="#4dd7a8" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="246" y1="49" x2="246" y2="55" stroke="#4dd7a8" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+          <g class="hero-sp1">
+            <line x1="113" y1="174" x2="119" y2="174" stroke="#ff9f43" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="116" y1="171" x2="116" y2="177" stroke="#ff9f43" stroke-width="1.5" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+
     </section>
 
     <section class="view active" id="view-rutas">
@@ -940,12 +1462,18 @@
           <p class="section-subtitle">Todos pueden ver las rutas. Solo usuarios autenticados pueden confirmar una reserva.</p>
         </div>
         <div class="panel-actions">
-          <button class="ghost-btn" id="refresh-routes-btn">Actualizar rutas</button>
+          <button class="ghost-btn" id="refresh-routes-btn" title="Actualizar rutas">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span class="btn-label">Actualizar rutas</span>
+          </button>
         </div>
       </div>
 
-      <div class="info-strip" id="route-info-strip">
-        Debes iniciar sesion para reservar. Cuando entres, podras confirmar tu cupo en cualquier ruta disponible.
+      <div class="route-search">
+        <input id="route-filter" type="text" placeholder="Buscar por ciudad de origen o destino..." autocomplete="off" />
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
       </div>
 
       <div class="routes-grid" id="rutas-container">
@@ -1009,6 +1537,10 @@
             <div class="field">
               <label for="admin-ruta-capacidad">Capacidad</label>
               <input id="admin-ruta-capacidad" type="number" min="1" placeholder="Ej: 40" />
+            </div>
+            <div class="field">
+              <label for="admin-ruta-precio">Precio del ticket (COP)</label>
+              <input id="admin-ruta-precio" type="number" min="0" step="1000" placeholder="Ej: 25000" />
             </div>
           </div>
 
@@ -1091,6 +1623,14 @@
         <button class="close-btn" id="close-reserve-modal">x</button>
       </div>
 
+      <div class="steps-bar">
+        <div class="step active" id="step-1"><span class="step-num">1</span><span class="step-label">Asiento</span></div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-2"><span class="step-num">2</span><span class="step-label">Datos</span></div>
+        <div class="step-connector"></div>
+        <div class="step" id="step-3"><span class="step-num">3</span><span class="step-label">Pago</span></div>
+      </div>
+
       <div class="reserve-layout">
         <section class="bus-shell">
           <div class="bus-head">
@@ -1111,6 +1651,18 @@
         </section>
 
         <section class="reserve-form">
+          <div class="trip-summary-card">
+            <div class="route-cities">
+              <span class="city-name" id="trip-origin">—</span>
+              <span class="city-arrow">→</span>
+              <span class="city-name" id="trip-dest">—</span>
+            </div>
+            <div class="trip-details">
+              <span>📅 <strong id="trip-date">—</strong></span>
+              <span>🎫 <strong id="trip-price">—</strong></span>
+            </div>
+          </div>
+
           <div class="field">
             <label for="reserve-passenger-name">Nombre del pasajero</label>
             <input id="reserve-passenger-name" type="text" placeholder="Se llena con tu nombre, pero puedes ajustarlo" />
@@ -1127,7 +1679,7 @@
           </div>
 
           <div class="field">
-            <label for="reserve-payment-method">Modulo de pago</label>
+            <label for="reserve-payment-method">Metodo de pago</label>
             <select id="reserve-payment-method">
               <option value="">Selecciona un metodo</option>
               <option value="Tarjeta">Tarjeta debito/credito</option>
@@ -1150,6 +1702,22 @@
 
       <input type="hidden" id="reserve-route-id" />
       <button class="submit-btn" id="reserve-submit-btn" style="margin-top: 18px; width: 100%;">Pagar y crear reserva</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="map-modal">
+    <div class="modal map-modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="map-modal-title">Ruta</h3>
+          <p class="muted" id="map-modal-subtitle">Trayecto estimado del recorrido</p>
+        </div>
+        <button class="close-btn" id="close-map-modal">x</button>
+      </div>
+      <div id="route-map-wrap">
+        <div class="map-placeholder"><div class="spinner"></div><span>Cargando mapa...</span></div>
+      </div>
+      <div class="route-stats" id="map-route-stats"></div>
     </div>
   </div>
 
@@ -1256,22 +1824,18 @@
       const loginBtn = document.getElementById("open-login-btn");
       const signInBtn = document.getElementById("open-signin-btn");
       const logoutBtn = document.getElementById("logout-btn");
-      const infoStrip = document.getElementById("route-info-strip");
-
       if (isLoggedIn()) {
         userChip.classList.remove("hidden");
         logoutBtn.classList.remove("hidden");
         loginBtn.classList.add("hidden");
         signInBtn.classList.add("hidden");
         userChip.textContent = `${state.user.full_name} (${state.user.username})`;
-        infoStrip.textContent = "Sesion activa. Ya puedes hacer reservas en cualquier ruta disponible.";
       } else {
         userChip.classList.add("hidden");
         logoutBtn.classList.add("hidden");
         loginBtn.classList.remove("hidden");
         signInBtn.classList.remove("hidden");
         userChip.textContent = "";
-        infoStrip.textContent = "Debes iniciar sesion para reservar. Cuando entres, podras confirmar tu cupo en cualquier ruta disponible.";
       }
 
       adminNav.classList.toggle("hidden", !isAdmin());
@@ -1288,63 +1852,38 @@
 
     function renderHeroStats() {
       const totalRutas = state.rutas.length;
-      const totalCapacidad = state.rutas.reduce((sum, ruta) => sum + Number(ruta.capacidad || 0), 0);
-      const totalReservas = state.rutas.reduce((sum, ruta) => sum + Number(ruta.reservas_actuales || 0), 0);
-      const ocupacion = totalCapacidad ? Math.round((totalReservas / totalCapacidad) * 100) : 0;
+      const cities = new Set();
+      state.rutas.forEach(r => { cities.add(r.origen); cities.add(r.destino); });
+      const precios = state.rutas.map(r => r.precio ?? RESERVATION_PRICE).filter(p => p > 0);
+      const minPrecio = precios.length ? Math.min(...precios) : 0;
 
       document.getElementById("hero-stats").innerHTML = `
         <div class="stat-box"><strong>${totalRutas}</strong><span>Rutas activas</span></div>
-        <div class="stat-box"><strong>${Math.max(totalCapacidad - totalReservas, 0)}</strong><span>Asientos disponibles</span></div>
-        <div class="stat-box"><strong>${ocupacion}%</strong><span>Ocupacion promedio</span></div>
+        <div class="stat-box"><strong>${cities.size}</strong><span>Ciudades conectadas</span></div>
+        <div class="stat-box"><strong>${minPrecio ? formatMoney(minPrecio) : "—"}</strong><span>Desde</span></div>
       `;
     }
 
     function renderHeroSide() {
-      const title = document.getElementById("hero-side-title");
-      const copy = document.getElementById("hero-side-copy");
-      const list = document.getElementById("hero-list");
+      const heroTitle = document.getElementById("hero-title");
+      const heroSubtitle = document.getElementById("hero-subtitle");
 
       if (!isLoggedIn()) {
-        title.textContent = "Acceso para reservar";
-        copy.textContent = "Crea una cuenta o entra con tu usuario para habilitar el flujo de reserva.";
-        list.innerHTML = `
-          <div class="hero-item">
-            <div>
-              <strong>Acceso personal</strong>
-              <span>Inicia sesion o crea tu cuenta para reservar de forma segura.</span>
-            </div>
-            <span class="small-pill">Acceder</span>
-          </div>
-        `;
+        if (heroTitle) heroTitle.innerHTML = 'Inicia sesion para <span>reservar</span>';
+        if (heroSubtitle) heroSubtitle.textContent = "Los usuarios registrados pueden consultar rutas y crear reservas.";
         return;
       }
+
+      const firstName = (state.user.full_name || "").split(" ")[0];
 
       if (isAdmin()) {
-        title.textContent = "Sesion activa";
-        copy.textContent = "Tu acceso esta listo para continuar con reservas y navegar por la plataforma.";
-        list.innerHTML = `
-          <div class="hero-item">
-            <div>
-              <strong>Bienvenido</strong>
-              <span>${state.user.full_name} ya puede continuar dentro de la plataforma.</span>
-            </div>
-            <span class="small-pill">Activo</span>
-          </div>
-        `;
+        if (heroTitle) heroTitle.innerHTML = `Hola, <span>${firstName}</span>. Panel listo.`;
+        if (heroSubtitle) heroSubtitle.textContent = "Administra rutas, reservas y el estado de la infraestructura.";
         return;
       }
 
-      title.textContent = "Usuario autenticado";
-      copy.textContent = "Ya puedes reservar en cualquier ruta disponible con tu sesion actual.";
-      list.innerHTML = `
-        <div class="hero-item">
-          <div>
-            <strong>Sesion activa</strong>
-            <span>${state.user.full_name} puede reservar en cualquier ruta disponible.</span>
-          </div>
-          <span class="small-pill">Reserva</span>
-        </div>
-      `;
+      if (heroTitle) heroTitle.innerHTML = `Hola, <span>${firstName}</span>. ¿A donde vas hoy?`;
+      if (heroSubtitle) heroSubtitle.textContent = "Explora las rutas disponibles y reserva tu cupo en segundos.";
     }
 
     function activateView(name) {
@@ -1369,6 +1908,36 @@
       if (name === "admin") loadAdminPanel();
     }
 
+    function getRouteStatus(ruta) {
+      if (ruta.asientos_disponibles === 0) return { text: "Completo", cls: "off" };
+      if (ruta.ocupacion_porcentaje >= 80) return { text: "Pocos cupos", cls: "warn" };
+      if (ruta.ocupacion_porcentaje >= 50) return { text: "Casi lleno", cls: "warn" };
+      return { text: "Disponible", cls: "ok" };
+    }
+
+    function getOccupancyColor(pct) {
+      if (pct >= 80) return "var(--danger)";
+      if (pct >= 50) return "var(--accent-alt)";
+      return "var(--accent)";
+    }
+
+    function filterAndRenderRoutes() {
+      const query = (document.getElementById("route-filter")?.value || "").toLowerCase().trim();
+      if (!query) {
+        renderRoutes(state.rutas);
+        return;
+      }
+      const filtered = state.rutas.filter(r =>
+        r.origen.toLowerCase().includes(query) || r.destino.toLowerCase().includes(query)
+      );
+      const container = document.getElementById("rutas-container");
+      if (!filtered.length) {
+        container.innerHTML = `<div class="search-empty">No hay rutas que coincidan con "<strong>${query}</strong>".</div>`;
+        return;
+      }
+      renderRoutes(filtered);
+    }
+
     function renderRoutes(rutas) {
       const container = document.getElementById("rutas-container");
       if (!rutas.length) {
@@ -1378,26 +1947,34 @@
 
       container.innerHTML = "";
       rutas.forEach((ruta) => {
+        const status = getRouteStatus(ruta);
+        const isFull = ruta.asientos_disponibles === 0;
+
         const card = document.createElement("article");
         card.className = "route-card";
         card.innerHTML = `
           <div class="section-head">
-            <div>
-              <div class="route-title">${formatRouteName(ruta)}</div>
-              <p class="muted">${ruta.reservas_actuales} reservas activas y ${ruta.asientos_disponibles} asientos disponibles</p>
+            <div class="route-cities">
+              <span class="city-name">${ruta.origen}</span>
+              <span class="city-arrow">→</span>
+              <span class="city-name">${ruta.destino}</span>
             </div>
-            <span class="route-code">${ruta.id.slice(0, 8)}</span>
           </div>
-          <div>
-            <div class="section-head" style="margin-bottom: 10px;">
-              <span class="muted">Ocupacion</span>
-              <span class="muted">${ruta.ocupacion_porcentaje}%</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" style="width:${Math.min(ruta.ocupacion_porcentaje, 100)}%"></div></div>
+
+          <div class="route-meta">
+            <span class="price-badge">${formatMoney(ruta.precio ?? RESERVATION_PRICE)}</span>
+            <span class="status-pill ${status.cls}">${status.text}</span>
+            <span class="small-pill">Cap. ${ruta.capacidad}</span>
           </div>
+
           <div class="route-actions">
-            <button class="pill-btn primary reserve-trigger">Reservar</button>
-            <span class="small-pill">Capacidad ${ruta.capacidad}</span>
+            <button class="pill-btn primary reserve-trigger" ${isFull ? "disabled" : ""}>
+              ${isFull ? "Sin cupos" : "Reservar"}
+            </button>
+            <button class="ghost-btn map-trigger">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Ver ruta en mapa
+            </button>
           </div>
         `;
 
@@ -1411,6 +1988,9 @@
           }
           openReserveModal(ruta);
         });
+
+        card.querySelector(".map-trigger").addEventListener("click", () => openMapModal(ruta));
+
         container.appendChild(card);
       });
     }
@@ -1455,8 +2035,8 @@
         row.innerHTML = `
           <div class="row-main">
             <strong>${formatRouteName(ruta)}</strong>
-            <span>Capacidad ${ruta.capacidad} | ${ruta.reservas_actuales} reservas | ${ruta.asientos_disponibles} libres</span>
-            <small>ID ${ruta.id}</small>
+            <span>Cap. ${ruta.capacidad} | ${ruta.reservas_actuales} reservas | ${ruta.asientos_disponibles} libres</span>
+            <small>Precio: ${formatMoney(ruta.precio ?? RESERVATION_PRICE)} por ticket | ID ${ruta.id}</small>
           </div>
           <div class="panel-actions">
             <span class="small-pill">${ruta.ocupacion_porcentaje}% ocupado</span>
@@ -1548,13 +2128,79 @@
       return `${String.fromCharCode(65 + row)}${column}`;
     }
 
+    function updateSteps() {
+      const hasSeat = Boolean(state.selectedSeat);
+      const hasData = Boolean(
+        document.getElementById("reserve-passenger-name").value.trim() &&
+        document.getElementById("reserve-phone").value.trim() &&
+        document.getElementById("reserve-payment-method").value
+      );
+      document.getElementById("step-1").className = `step ${hasSeat ? "done" : "active"}`;
+      document.getElementById("step-2").className = `step ${!hasSeat ? "" : hasData ? "done" : "active"}`;
+      document.getElementById("step-3").className = `step ${hasSeat && hasData ? "active" : ""}`;
+    }
+
+    function updateTripSummary() {
+      if (!state.activeRoute) return;
+      document.getElementById("trip-origin").textContent = state.activeRoute.origen;
+      document.getElementById("trip-dest").textContent = state.activeRoute.destino;
+      document.getElementById("trip-price").textContent = formatMoney(state.activeRoute.precio ?? RESERVATION_PRICE);
+      const fecha = document.getElementById("reserve-date").value;
+      document.getElementById("trip-date").textContent = fecha || "—";
+    }
+
+    function clearFieldError(inputEl) {
+      const field = inputEl.closest(".field");
+      field.classList.remove("has-error");
+      const msg = field.querySelector(".field-error-msg");
+      if (msg) msg.remove();
+    }
+
+    function validateReserveForm(passengerName, phone, paymentMethod) {
+      let valid = true;
+      if (!state.selectedSeat) {
+        toast("Selecciona un asiento en el bus.", "error");
+        valid = false;
+      }
+      const checks = [
+        { id: "reserve-passenger-name", value: passengerName, msg: "Ingresa el nombre del pasajero" },
+        { id: "reserve-phone",          value: phone,          msg: "Ingresa un telefono de contacto" },
+        { id: "reserve-payment-method", value: paymentMethod,  msg: "Selecciona un metodo de pago" },
+      ];
+      checks.forEach(({ id, value, msg }) => {
+        const input = document.getElementById(id);
+        const field = input.closest(".field");
+        field.classList.remove("has-error");
+        const prev = field.querySelector(".field-error-msg");
+        if (prev) prev.remove();
+        if (!value) {
+          field.classList.add("has-error");
+          const errEl = document.createElement("span");
+          errEl.className = "field-error-msg";
+          errEl.textContent = msg;
+          field.appendChild(errEl);
+          valid = false;
+        }
+      });
+      return valid;
+    }
+
     function updatePaymentSummary() {
-      document.getElementById("payment-seat").textContent = state.selectedSeat || "Sin seleccionar";
-      document.getElementById("payment-total").textContent = state.selectedSeat ? formatMoney(RESERVATION_PRICE) : "$0 COP";
-      document.getElementById("payment-status").textContent = state.selectedSeat ? "Listo para pagar" : "Pendiente";
-      document.getElementById("reserve-seat-status").textContent = state.selectedSeat
+      const hasSeat = Boolean(state.selectedSeat);
+      const precio = state.activeRoute?.precio ?? RESERVATION_PRICE;
+      document.getElementById("payment-seat").textContent = hasSeat ? state.selectedSeat : "Sin seleccionar";
+      document.getElementById("payment-total").textContent = hasSeat ? formatMoney(precio) : "$0 COP";
+      document.getElementById("payment-status").textContent = hasSeat ? "Listo para pagar" : "Pendiente";
+      document.getElementById("reserve-seat-status").textContent = hasSeat
         ? `Asiento ${state.selectedSeat} seleccionado.`
-        : "Asientos libres por dentro del autobus.";
+        : "Selecciona un asiento del autobus.";
+      if (hasSeat) {
+        const box = document.querySelector(".payment-box");
+        box.classList.remove("pulse");
+        void box.offsetWidth;
+        box.classList.add("pulse");
+      }
+      updateSteps();
     }
 
     function renderSeatMap(ruta) {
@@ -1596,8 +2242,26 @@
       updatePaymentSummary();
     }
 
+    async function loadSeatAvailability(rutaId, fecha) {
+      const seatMap = document.getElementById("seat-map");
+      seatMap.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted)"><div class="spinner" style="margin:0 auto 10px"></div>Cargando disponibilidad...</div>';
+      try {
+        const response = await apiFetch(`/rutas/${rutaId}/disponibilidad?fecha=${fecha}`, {}, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        state.selectedSeat = "";
+        renderSeatMap({ ...state.activeRoute, asientos_ocupados: data.asientos_ocupados });
+        const d = data.asientos_disponibles;
+        document.getElementById("reserve-seat-status").textContent =
+          `${d} asiento${d !== 1 ? "s" : ""} disponible${d !== 1 ? "s" : ""} para esta fecha.`;
+        document.getElementById("reserve-route-info").textContent =
+          `${formatRouteName(state.activeRoute)} | ${d} disponibles el ${fecha}`;
+      } catch (error) {
+        seatMap.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:18px;color:var(--danger)">No se pudo cargar la disponibilidad.</div>`;
+      }
+    }
+
     function openReserveModal(ruta) {
-      document.getElementById("reserve-route-info").textContent = `${formatRouteName(ruta)} | ${ruta.asientos_disponibles} asientos disponibles`;
       document.getElementById("reserve-route-id").value = ruta.id;
       document.getElementById("reserve-passenger-name").value = state.user?.full_name || "";
       document.getElementById("reserve-phone").value = "";
@@ -1605,8 +2269,21 @@
       document.getElementById("reserve-date").valueAsDate = new Date();
       state.activeRoute = ruta;
       state.selectedSeat = "";
-      renderSeatMap(ruta);
+
+      ["reserve-passenger-name", "reserve-phone", "reserve-payment-method"].forEach((id) => {
+        const el = document.getElementById(id);
+        el.addEventListener("input", () => { clearFieldError(el); updateSteps(); }, { once: false });
+        el.addEventListener("change", () => { clearFieldError(el); updateSteps(); }, { once: false });
+      });
+
+      document.getElementById("step-1").className = "step active";
+      document.getElementById("step-2").className = "step";
+      document.getElementById("step-3").className = "step";
+
       openModal("reserve-modal");
+      updateTripSummary();
+      const fecha = document.getElementById("reserve-date").value;
+      loadSeatAvailability(ruta.id, fecha);
     }
 
     async function loadRutas() {
@@ -1617,7 +2294,7 @@
         if (!response.ok) throw new Error(`Error ${response.status}`);
         state.rutas = await response.json();
         renderHeroStats();
-        renderRoutes(state.rutas);
+        filterAndRenderRoutes();
       } catch (error) {
         container.innerHTML = `<div class="empty">No se pudieron cargar las rutas.<br><small>${error.message}</small></div>`;
       }
@@ -1749,9 +2426,14 @@
       const origen = document.getElementById("admin-ruta-origen").value.trim();
       const destino = document.getElementById("admin-ruta-destino").value.trim();
       const capacidad = Number.parseInt(document.getElementById("admin-ruta-capacidad").value, 10);
+      const precio = Number.parseInt(document.getElementById("admin-ruta-precio").value, 10);
 
       if (!origen || !destino || !capacidad || capacidad < 1) {
         toast("Completa origen, destino y capacidad validos.", "error");
+        return;
+      }
+      if (!precio || precio < 0) {
+        toast("Ingresa un precio valido para el ticket.", "error");
         return;
       }
 
@@ -1760,7 +2442,7 @@
         const response = await apiFetch("/rutas", {
           method: "POST",
           headers: { ...authHeaders({ "Content-Type": "application/json" }) },
-          body: JSON.stringify({ origen, destino, capacidad }),
+          body: JSON.stringify({ origen, destino, capacidad, precio }),
         }, true);
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
@@ -1769,6 +2451,7 @@
         document.getElementById("admin-ruta-origen").value = "";
         document.getElementById("admin-ruta-destino").value = "";
         document.getElementById("admin-ruta-capacidad").value = "";
+        document.getElementById("admin-ruta-precio").value = "";
         await Promise.all([loadRutas(), loadAdminPanel()]);
       } catch (error) {
         toast(error.message, "error");
@@ -1784,10 +2467,7 @@
       const bookingDate = document.getElementById("reserve-date").value;
       const paymentMethod = document.getElementById("reserve-payment-method").value;
 
-      if (!passengerName || !phone || !bookingDate || !state.selectedSeat || !paymentMethod) {
-        toast("Completa pasajero, telefono, fecha, asiento y metodo de pago.", "error");
-        return;
-      }
+      if (!validateReserveForm(passengerName, phone, paymentMethod)) return;
 
       setButtonLoading("reserve-submit-btn", "Procesando pago...", true);
       try {
@@ -1806,6 +2486,7 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
         toast(`Reserva pagada. Asiento ${state.selectedSeat} confirmado.`);
+        generateInvoicePDF(data.id, passengerName, phone, bookingDate, state.selectedSeat, paymentMethod, state.activeRoute);
         closeModal("reserve-modal");
         await Promise.all([
           loadRutas(),
@@ -1847,6 +2528,188 @@
       }
     }
 
+    let leafletMap = null;
+
+    async function geocodeCity(city) {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ", Colombia")}&format=json&limit=1`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (!data.length) throw new Error(`No se encontro la ciudad: ${city}`);
+      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+    }
+
+    async function fetchOSRMRoute(origin, dest) {
+      const url = `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (data.code !== "Ok" || !data.routes.length) throw new Error("No se encontro ruta entre las ciudades");
+      return data.routes[0];
+    }
+
+    async function openMapModal(ruta) {
+      document.getElementById("map-modal-title").textContent = `${ruta.origen} → ${ruta.destino}`;
+      document.getElementById("map-modal-subtitle").textContent = "Calculando ruta...";
+      document.getElementById("map-route-stats").innerHTML = "";
+      document.getElementById("route-map-wrap").innerHTML = `<div class="map-placeholder"><div class="spinner"></div><span>Cargando mapa...</span></div>`;
+
+      openModal("map-modal");
+
+      if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+
+      try {
+        const [originCoords, destCoords] = await Promise.all([
+          geocodeCity(ruta.origen),
+          geocodeCity(ruta.destino),
+        ]);
+
+        const mapDiv = document.createElement("div");
+        mapDiv.id = "route-map";
+        document.getElementById("route-map-wrap").innerHTML = "";
+        document.getElementById("route-map-wrap").appendChild(mapDiv);
+
+        leafletMap = L.map(mapDiv, { zoomControl: true }).setView([4.5, -74.0], 6);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a>",
+          maxZoom: 18,
+        }).addTo(leafletMap);
+
+        const makeIcon = (color) => L.divIcon({
+          className: "",
+          html: `<div style="width:16px;height:16px;background:${color};border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.45)"></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        });
+
+        L.marker([originCoords.lat, originCoords.lon], { icon: makeIcon("#4dd7a8") })
+          .addTo(leafletMap)
+          .bindPopup(`<strong>Origen:</strong> ${ruta.origen}`);
+        L.marker([destCoords.lat, destCoords.lon], { icon: makeIcon("#ff9f43") })
+          .addTo(leafletMap)
+          .bindPopup(`<strong>Destino:</strong> ${ruta.destino}`);
+
+        const route = await fetchOSRMRoute(originCoords, destCoords);
+
+        const routeLine = L.geoJSON(route.geometry, {
+          style: { color: "#4dd7a8", weight: 5, opacity: 0.85, lineJoin: "round" },
+        }).addTo(leafletMap);
+
+        leafletMap.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+
+        const distKm = Math.round(route.distance / 1000);
+        const totalMin = Math.round(route.duration / 60);
+        const hours = Math.floor(totalMin / 60);
+        const mins = totalMin % 60;
+        const durStr = hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
+
+        document.getElementById("map-modal-subtitle").textContent = `${ruta.origen} → ${ruta.destino}`;
+        document.getElementById("map-route-stats").innerHTML = `
+          <div class="stat-box"><strong>${distKm} km</strong><span>Distancia estimada</span></div>
+          <div class="stat-box"><strong>${durStr}</strong><span>Duracion estimada</span></div>
+          <div class="stat-box"><strong>${formatMoney(ruta.precio ?? RESERVATION_PRICE)}</strong><span>Valor del ticket</span></div>
+        `;
+      } catch (err) {
+        document.getElementById("map-modal-subtitle").textContent = "No se pudo calcular la ruta";
+        document.getElementById("route-map-wrap").innerHTML = `
+          <div class="map-placeholder">
+            <span style="color:var(--danger)">Error al cargar el mapa</span>
+            <small>${err.message}</small>
+          </div>`;
+      }
+    }
+
+    function generateInvoicePDF(reservaId, passengerName, phone, bookingDate, seat, paymentMethod, ruta) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+      const accent = [77, 215, 168];
+      const dark = [20, 35, 55];
+      const muted = [100, 120, 150];
+      const white = [255, 255, 255];
+
+      doc.setFillColor(...accent);
+      doc.rect(0, 0, 210, 42, 'F');
+
+      doc.setTextColor(...white);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(24);
+      doc.text('ReservaYa', 15, 18);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Factura de Reserva de Transporte', 15, 27);
+
+      const today = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+      doc.setFontSize(10);
+      doc.text(`No. ${reservaId.slice(0, 8).toUpperCase()}`, 195, 18, { align: 'right' });
+      doc.text(`Emitida: ${today}`, 195, 27, { align: 'right' });
+
+      let y = 55;
+
+      function sectionTitle(title) {
+        doc.setFillColor(230, 245, 240);
+        doc.rect(12, y - 5, 186, 11, 'F');
+        doc.setTextColor(...dark);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(title, 16, y + 1);
+        y += 14;
+      }
+
+      function dataRow(label, value) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...muted);
+        doc.text(label, 18, y);
+        doc.setTextColor(...dark);
+        doc.setFont('helvetica', 'bold');
+        doc.text(String(value), 85, y);
+        y += 9;
+      }
+
+      sectionTitle('Datos del Pasajero');
+      dataRow('Nombre del pasajero:', passengerName);
+      dataRow('Telefono:', phone);
+      y += 5;
+
+      sectionTitle('Detalles de la Reserva');
+      dataRow('Ruta:', `${ruta.origen} -> ${ruta.destino}`);
+      dataRow('Asiento:', seat);
+      dataRow('Fecha de viaje:', bookingDate);
+      dataRow('ID de reserva:', reservaId.slice(0, 8).toUpperCase());
+      y += 5;
+
+      sectionTitle('Informacion de Pago');
+      dataRow('Metodo de pago:', paymentMethod);
+      const precioTicket = ruta.precio ?? RESERVATION_PRICE;
+      dataRow('Valor del ticket:', formatMoney(precioTicket));
+      dataRow('Estado del pago:', 'PAGADO');
+      y += 10;
+
+      doc.setFillColor(...accent);
+      doc.roundedRect(100, y, 95, 22, 4, 4, 'F');
+      doc.setTextColor(...white);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('TOTAL PAGADO', 108, y + 9);
+      doc.setFontSize(13);
+      doc.text(formatMoney(precioTicket), 191, y + 9, { align: 'right' });
+      y += 32;
+
+      doc.setDrawColor(...muted);
+      doc.setLineWidth(0.3);
+      doc.line(12, y, 198, y);
+      y += 7;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...muted);
+      doc.text(
+        'Gracias por viajar con ReservaYa. Conserva esta factura como comprobante de pago.',
+        105, y, { align: 'center' }
+      );
+
+      doc.save(`factura-${reservaId.slice(0, 8)}.pdf`);
+    }
+
     function setupEvents() {
       document.querySelectorAll(".nav-btn").forEach((button) => {
         button.addEventListener("click", () => activateView(button.dataset.view));
@@ -1867,12 +2730,23 @@
       document.getElementById("logout-btn").addEventListener("click", logout);
       document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
       document.getElementById("close-reserve-modal").addEventListener("click", () => closeModal("reserve-modal"));
+      document.getElementById("close-map-modal").addEventListener("click", () => {
+        closeModal("map-modal");
+        if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+      });
       document.getElementById("refresh-routes-btn").addEventListener("click", loadRutas);
+      document.getElementById("route-filter").addEventListener("input", filterAndRenderRoutes);
       document.getElementById("refresh-my-reservations-btn").addEventListener("click", loadMyReservations);
       document.getElementById("refresh-admin-btn").addEventListener("click", loadAdminPanel);
       document.getElementById("btn-admin-ruta").addEventListener("click", createRouteFromAdmin);
       document.getElementById("auth-submit-btn").addEventListener("click", submitAuth);
       document.getElementById("reserve-submit-btn").addEventListener("click", createReservation);
+      document.getElementById("reserve-date").addEventListener("change", () => {
+        if (state.activeRoute) {
+          updateTripSummary();
+          loadSeatAvailability(state.activeRoute.id, document.getElementById("reserve-date").value);
+        }
+      });
 
       document.querySelectorAll(".auth-tab").forEach((button) => {
         button.addEventListener("click", () => {
@@ -1899,5 +2773,15 @@
     window.deleteReservation = deleteReservation;
     init();
   </script>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-brand-mark">RY</div>
+        ReservaYa Control
+      </div>
+      <span class="footer-copy">© 2026 — Sistema de reservas de transporte</span>
+    </div>
+  </footer>
 </body>
 </html>

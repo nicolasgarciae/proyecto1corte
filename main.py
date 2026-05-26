@@ -34,12 +34,14 @@ class Ruta(BaseModel):
     origen: str
     destino: str
     capacidad: int = Field(..., ge=1)
+    precio: int = Field(..., ge=0)
 
 
 class RutaUpdate(BaseModel):
     origen: Optional[str] = None
     destino: Optional[str] = None
     capacidad: Optional[int] = Field(default=None, ge=1)
+    precio: Optional[int] = Field(default=None, ge=0)
 
 
 class Reserva(BaseModel):
@@ -262,6 +264,11 @@ async def ensure_user_schema():
                 """
             )
 
+        await cursor.execute("SHOW COLUMNS FROM rutas LIKE 'precio'")
+        precio_col = await cursor.fetchone()
+        if not precio_col:
+            await cursor.execute("ALTER TABLE rutas ADD COLUMN precio INT NOT NULL DEFAULT 25000")
+
         await cursor.execute("SHOW COLUMNS FROM reservas LIKE 'user_id'")
         user_id_column = await cursor.fetchone()
         if not user_id_column:
@@ -280,10 +287,17 @@ async def ensure_user_schema():
             if not column_exists:
                 await cursor.execute(alter_query)
 
+        await cursor.execute("SHOW INDEX FROM reservas WHERE Key_name='idx_reservas_ruta_asiento_fecha'")
+        new_seat_index = await cursor.fetchone()
+        if not new_seat_index:
+            await cursor.execute(
+                "CREATE UNIQUE INDEX idx_reservas_ruta_asiento_fecha ON reservas (ruta_id, asiento, fecha_reserva)"
+            )
+
         await cursor.execute("SHOW INDEX FROM reservas WHERE Key_name='idx_reservas_ruta_asiento'")
-        seat_index = await cursor.fetchone()
-        if not seat_index:
-            await cursor.execute("CREATE UNIQUE INDEX idx_reservas_ruta_asiento ON reservas (ruta_id, asiento)")
+        old_seat_index = await cursor.fetchone()
+        if old_seat_index:
+            await cursor.execute("DROP INDEX idx_reservas_ruta_asiento ON reservas")
 
         await cursor.execute("SELECT id FROM users WHERE username=%s", (ADMIN_USERNAME,))
         admin_user = await cursor.fetchone()
@@ -460,11 +474,12 @@ async def get_routes_with_stats(conn) -> list[dict]:
                    rutas.origen,
                    rutas.destino,
                    rutas.capacidad,
+                   rutas.precio,
                    COUNT(reservas.id) AS reservas_actuales,
                    GROUP_CONCAT(reservas.asiento ORDER BY reservas.asiento SEPARATOR ',') AS asientos_ocupados_raw
             FROM rutas
             LEFT JOIN reservas ON reservas.ruta_id = rutas.id
-            GROUP BY rutas.id, rutas.origen, rutas.destino, rutas.capacidad
+            GROUP BY rutas.id, rutas.origen, rutas.destino, rutas.capacidad, rutas.precio
             ORDER BY rutas.origen, rutas.destino
             """
         )
@@ -526,7 +541,7 @@ async def get_reservations(conn, user_id: Optional[str] = None) -> list[dict]:
         await cursor.close()
 
 
-async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[str] = None):
+async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[str] = None, fecha_reserva: Optional[str] = None):
     await cursor.execute("SELECT capacidad, origen, destino FROM rutas WHERE id=%s FOR UPDATE", (ruta_id,))
     ruta = await cursor.fetchone()
     if not ruta:
@@ -534,6 +549,9 @@ async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[
 
     params = [ruta_id]
     count_query = "SELECT COUNT(*) AS total FROM reservas WHERE ruta_id=%s"
+    if fecha_reserva:
+        count_query += " AND fecha_reserva=%s"
+        params.append(fecha_reserva)
     if exclude_reserva_id:
         count_query += " AND id <> %s"
         params.append(exclude_reserva_id)
@@ -668,10 +686,10 @@ async def crear_ruta(ruta: Ruta, request: Request):
     try:
         await cursor.execute(
             """
-            INSERT INTO rutas (id, origen, destino, capacidad)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO rutas (id, origen, destino, capacidad, precio)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (ruta_id, normalize_text(ruta.origen), normalize_text(ruta.destino), ruta.capacidad),
+            (ruta_id, normalize_text(ruta.origen), normalize_text(ruta.destino), ruta.capacidad, ruta.precio),
         )
         await conn.commit()
     finally:
@@ -748,7 +766,7 @@ async def actualizar_ruta(ruta_id: str, ruta: RutaUpdate, request: Request):
 
         fields = []
         values = []
-        for key in ("origen", "destino", "capacidad"):
+        for key in ("origen", "destino", "capacidad", "precio"):
             if key in payload:
                 fields.append(f"{key}=%s")
                 values.append(normalize_text(payload[key]) if isinstance(payload[key], str) else payload[key])
@@ -794,6 +812,38 @@ async def eliminar_ruta(ruta_id: str, request: Request):
     return {"mensaje": "Ruta eliminada", "id": ruta_id}
 
 
+@app.get("/rutas/{ruta_id}/disponibilidad")
+async def disponibilidad_ruta(ruta_id: str, fecha: str, request: Request):
+    await require_user(request)
+
+    conn = await get_connection()
+    cursor = await conn.cursor(aiomysql.DictCursor)
+    try:
+        await cursor.execute("SELECT capacidad FROM rutas WHERE id=%s", (ruta_id,))
+        ruta = await cursor.fetchone()
+        if not ruta:
+            raise HTTPException(status_code=404, detail="Ruta no encontrada")
+
+        await cursor.execute(
+            "SELECT asiento FROM reservas WHERE ruta_id=%s AND fecha_reserva=%s",
+            (ruta_id, fecha),
+        )
+        reservas = await cursor.fetchall()
+    finally:
+        await cursor.close()
+        conn.close()
+
+    asientos_ocupados = [r["asiento"] for r in reservas]
+    capacidad = int(ruta["capacidad"])
+    return {
+        "ruta_id": ruta_id,
+        "fecha": fecha,
+        "capacidad": capacidad,
+        "asientos_ocupados": asientos_ocupados,
+        "asientos_disponibles": capacidad - len(asientos_ocupados),
+    }
+
+
 @app.post("/reservas")
 async def crear_reserva(reserva: Reserva, request: Request):
     current_user = await require_user(request)
@@ -803,14 +853,14 @@ async def crear_reserva(reserva: Reserva, request: Request):
     reserva_id = str(uuid.uuid4())
 
     try:
-        ruta, reservas_actuales = await get_route_capacity(cursor, reserva.ruta_id)
+        booking_date = reserva.fecha_reserva.isoformat()
+        ruta, reservas_actuales = await get_route_capacity(cursor, reserva.ruta_id, fecha_reserva=booking_date)
         capacidad = int(get_first_value(ruta))
         if reservas_actuales >= capacidad:
-            raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad maxima")
+            raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad maxima para esa fecha")
 
         passenger_name = normalize_text(reserva.nombre_pasajero or current_user["full_name"] or current_user["username"])
         phone = normalize_text(reserva.telefono)
-        booking_date = reserva.fecha_reserva.isoformat()
         seat = normalize_text(reserva.asiento).upper()
         payment_method = normalize_text(reserva.metodo_pago)
 
@@ -822,11 +872,11 @@ async def crear_reserva(reserva: Reserva, request: Request):
             raise HTTPException(status_code=400, detail="El asiento seleccionado no existe para esta ruta")
 
         await cursor.execute(
-            "SELECT id FROM reservas WHERE ruta_id=%s AND asiento=%s FOR UPDATE",
-            (reserva.ruta_id, seat),
+            "SELECT id FROM reservas WHERE ruta_id=%s AND asiento=%s AND fecha_reserva=%s FOR UPDATE",
+            (reserva.ruta_id, seat, booking_date),
         )
         if await cursor.fetchone():
-            raise HTTPException(status_code=409, detail="Ese asiento ya fue reservado en esta ruta")
+            raise HTTPException(status_code=409, detail="Ese asiento ya fue reservado en esta ruta para esa fecha")
 
         await cursor.execute(
             """
