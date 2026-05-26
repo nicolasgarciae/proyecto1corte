@@ -9,6 +9,17 @@ REDIS_UI_LOG="/tmp/proyecto1corte-redis-commander-ui.log"
 DOZZLE_UI_LOG="/tmp/proyecto1corte-dozzle-ui.log"
 PORTAINER_UI_LOG="/tmp/proyecto1corte-portainer-ui.log"
 
+echo "[0/9] Verificando .env..."
+if [ ! -f "$ENV_FILE" ]; then
+  if [ -f "$PROJECT_DIR/.env.example" ]; then
+    cp "$PROJECT_DIR/.env.example" "$ENV_FILE"
+    echo "  .env no existia, creado desde .env.example con valores por defecto."
+    echo "  Edita $ENV_FILE para usar contrasenas seguras."
+  else
+    echo "  AVISO: no se encontro .env ni .env.example. Se usaran los defaults del docker-compose.yml."
+  fi
+fi
+
 echo "[1/9] Iniciando MariaDB..."
 service mariadb start >/dev/null 2>&1 || true
 
@@ -24,9 +35,8 @@ pkill -f 'tcp_bridge.py :: 9443' || true
 pkill -f uvicorn || true
 sleep 1
 
-echo "[4/9] Construyendo y levantando contenedores..."
+echo "[4/9] Levantando contenedores..."
 cd "$PROJECT_DIR"
-DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
 DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 
 echo "[5/9] Sincronizando .env con IPs reales de Docker..."

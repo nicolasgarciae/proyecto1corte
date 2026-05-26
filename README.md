@@ -1,277 +1,400 @@
-# API Reservas de Transporte
+# ReservaYa — Sistema de Reservas de Transporte
 
-Proyecto de reservas de transporte con FastAPI, MySQL, Redis, RabbitMQ, worker, Docker Compose, Portainer y Dozzle.
+API y panel web para reservas de buses, construido con FastAPI, MySQL, Redis y RabbitMQ. Todo corre en Docker, sin necesidad de instalar nada más.
 
-## Despliegue Rapido En Otra Maquina
+---
 
-Estos pasos permiten clonar y ejecutar el proyecto completo usando Docker. No necesitas instalar Python, MySQL, Redis ni RabbitMQ por separado.
+## Despliegue en otra máquina (paso a paso)
 
-### 1. Requisitos
+> Sigue estos pasos **en orden**. Si algo falla, ve directo a la sección [Solución de problemas](#solución-de-problemas).
 
-En la maquina nueva debes tener:
+---
 
-- Git
-- Docker
-- Docker Compose
-- WSL si estas en Windows
+### Paso 1 — Instalar los requisitos
 
-Verifica:
+Necesitas tener instalados:
+
+| Herramienta | Para qué sirve | Cómo instalar |
+|---|---|---|
+| **Git** | Descargar el código | https://git-scm.com/downloads |
+| **Docker Desktop** | Correr todos los servicios | https://www.docker.com/products/docker-desktop |
+| **Make** | Ejecutar los comandos del proyecto | Viene incluido en Linux/Mac. En Windows: instalar con WSL |
+
+> **¿Estás en Windows?**
+> Instala WSL (Windows Subsystem for Linux) y trabaja desde ahí.
+> Abre PowerShell como administrador y ejecuta: `wsl --install`
+> Luego abre la terminal de Ubuntu que aparece en el menú inicio.
+
+Verifica que todo esté instalado correctamente:
 
 ```bash
 git --version
 docker --version
 docker compose version
+make --version
 ```
 
-### 2. Clonar el repositorio
+Si alguno de esos comandos falla, instálalo antes de continuar.
+
+---
+
+### Paso 2 — Clonar el repositorio
+
+Descarga el código del proyecto en tu máquina:
 
 ```bash
 git clone https://github.com/nicolasgarciae/proyecto1corte.git
 cd proyecto1corte
 ```
 
-Si estas en Windows, ejecuta estos comandos dentro de WSL.
+Ahora estás dentro de la carpeta del proyecto. **Todos los comandos siguientes se ejecutan desde esta carpeta.**
 
-### 3. Levantar el sistema completo
+---
 
-Opcion A: construir la imagen localmente desde el codigo clonado.
+### Paso 3 — Crear el archivo de configuración
+
+El proyecto necesita un archivo `.env` con las contraseñas de la base de datos. Crea uno automáticamente con:
+
+```bash
+make setup
+```
+
+Verás este mensaje:
+
+```
+Archivo .env creado. Edita las contraseñas antes de continuar.
+```
+
+Abre el archivo `.env` que se acaba de crear:
+
+```bash
+nano .env
+```
+
+Verás algo así:
+
+```env
+MYSQL_ROOT_PASSWORD=cambia_esta_contrasena
+MYSQL_USER=api_user
+MYSQL_PASSWORD=cambia_esta_contrasena
+MYSQL_DB=transporte_db
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+```
+
+**Cambia los valores de `MYSQL_ROOT_PASSWORD` y `MYSQL_PASSWORD`** por contraseñas seguras de tu elección. Las otras variables puedes dejarlas igual.
+
+Guarda con `Ctrl+O`, luego `Enter`, luego `Ctrl+X`.
+
+> **¿Por qué no subimos el `.env` al repo?**
+> Porque contiene contraseñas. El archivo `.env` está en `.gitignore` para que nunca se suba accidentalmente a GitHub.
+
+---
+
+### Paso 4 — Iniciar Docker
+
+Asegúrate de que Docker esté corriendo.
+
+- **En Mac/Windows:** Abre Docker Desktop y espera a que el ícono de la ballena deje de moverse.
+- **En Linux/WSL:** Ejecuta `sudo service docker start` o `sudo dockerd &`
+
+Verifica que Docker responde:
+
+```bash
+docker info
+```
+
+Si ves información del sistema, Docker está listo.
+
+---
+
+### Paso 5 — Elegir cómo desplegar
+
+Hay dos opciones. Elige la que aplique a tu caso:
+
+---
+
+#### Opción A — Despliegue desde DockerHub *(recomendado para producción)*
+
+Usa la imagen ya construida y publicada en DockerHub. No necesitas el código fuente para compilar nada.
+
+```bash
+make DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1 deploy
+```
+
+Esto hace tres cosas automáticamente:
+1. Verifica que `.env` existe
+2. Descarga la imagen desde DockerHub
+3. Levanta todos los contenedores
+
+---
+
+#### Opción B — Construir desde el código *(para desarrollo)*
+
+Compila la imagen localmente desde el código que clonaste:
 
 ```bash
 make up
 ```
 
-Equivalente manual:
+Esto puede tardar unos minutos la primera vez porque descarga todas las imágenes base.
+
+---
+
+### Paso 6 — Esperar a que todo esté listo
+
+Docker levanta los servicios en orden. MySQL tarda un poco en inicializarse. Puedes ver el estado con:
 
 ```bash
-DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
-DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
+make status
 ```
 
-Opcion B: usar la imagen publicada en DockerHub.
+Espera hasta que todos los servicios digan `Up` o `healthy`:
+
+```
+NAME                         STATUS
+proyecto1corte-mysql         Up (healthy)
+proyecto1corte-redis         Up (healthy)
+proyecto1corte-rabbitmq      Up (healthy)
+proyecto1corte-app           Up
+proyecto1corte-worker        Up
+proyecto1corte-redis-commander  Up
+proyecto1corte-dozzle        Up
+proyecto1corte-portainer     Up
+```
+
+Si alguno dice `starting`, espera 30 segundos y vuelve a correr `make status`.
+
+---
+
+### Paso 7 — Verificar que funciona
+
+Haz una prueba rápida al endpoint de salud:
 
 ```bash
-DOCKER_IMAGE=nicolasgarciae1/proyecto1corte-api:v1 docker compose up -d
+curl http://localhost:8014/health
 ```
 
-Con Makefile:
-
-```bash
-make deploy DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1
-```
-
-### 4. Verificar que todo funciona
-
-```bash
-docker compose ps
-curl http://127.0.0.1:8014/health
-```
-
-La respuesta esperada es:
+Respuesta esperada:
 
 ```json
-{"status":"ok"}
+{"status": "ok"}
 ```
 
-### 5. Abrir la aplicacion y paneles
+Si ves eso, el sistema está funcionando correctamente.
 
-- Aplicacion/API: `http://localhost:8014`
-- RabbitMQ UI: `http://localhost:15673`
-- Redis Commander: `http://localhost:8082`
-- Dozzle logs: `http://localhost:8083`
-- Portainer: `https://localhost:9443`
+---
 
-Credenciales de RabbitMQ:
+### Paso 8 — Abrir la aplicación
 
-- Usuario: `guest`
-- Contrasena: `guest`
+Abre tu navegador y entra a las siguientes direcciones:
 
-En Portainer, la primera vez debes crear el usuario administrador inicial. El navegador puede mostrar advertencia porque Portainer usa certificado HTTPS autofirmado.
+| Panel | URL | Descripción |
+|---|---|---|
+| **Aplicación web** | http://localhost:8014 | Reservas y panel principal |
+| **RabbitMQ** | http://localhost:15673 | Cola de mensajes |
+| **Redis Commander** | http://localhost:8082 | Visor de caché y sesiones |
+| **Dozzle** | http://localhost:8083 | Logs de contenedores en tiempo real |
+| **Portainer** | https://localhost:9443 | Administración de Docker |
 
-### 6. Detener el sistema
+> **Portainer** puede mostrar una advertencia de seguridad porque usa HTTPS con certificado autofirmado. Haz clic en "Avanzado" → "Continuar de todas formas".
+> La **primera vez** que abras Portainer te pedirá crear un usuario administrador.
+
+**Credenciales del sistema:**
+
+| Servicio | Usuario | Contraseña |
+|---|---|---|
+| App (admin) | `admin` | `admin` |
+| RabbitMQ | `guest` | `guest` (o la que pusiste en `.env`) |
+
+---
+
+### Paso 9 — Apagar el sistema
+
+Para detener todos los contenedores sin perder datos:
 
 ```bash
-docker compose down
+make down
 ```
 
-Para detener y borrar volumenes de datos:
+Para detener **y borrar todos los datos** (base de datos incluida):
 
 ```bash
 docker compose down -v
 ```
 
-Usa `down -v` solo si quieres borrar la base de datos MySQL y datos persistentes.
+> ⚠️ Usa `down -v` solo si quieres empezar desde cero. Borra la base de datos MySQL permanentemente.
 
-## Servicios Docker
+---
 
-El `docker-compose.yml` levanta:
-
-- `proyecto1corte-app`: API FastAPI en el puerto `8014`
-- `proyecto1corte-worker`: consumer de RabbitMQ
-- `proyecto1corte-mysql`: MySQL 8 en el puerto `3307`
-- `proyecto1corte-redis`: Redis en el puerto `6380`
-- `proyecto1corte-rabbitmq`: RabbitMQ AMQP en `5673` y panel en `15673`
-- `proyecto1corte-redis-commander`: panel Redis en `8082`
-- `proyecto1corte-dozzle`: visor de logs en `8083`
-- `proyecto1corte-portainer`: administracion Docker en `9443`
-
-Los contenedores se comunican por la red interna de Docker Compose usando los nombres `mysql`, `redis` y `rabbitmq`.
-
-## Comandos Makefile
+## Comandos útiles del día a día
 
 ```bash
-make help
-make github-flow
-make up
-make down
-make logs
-make restart
-make status
-make build DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1
-make push DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1
-make deploy DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1
+make up          # Levantar el sistema
+make down        # Apagar el sistema
+make restart     # Reiniciar (reconstruye la imagen)
+make logs        # Ver logs en tiempo real (Ctrl+C para salir)
+make status      # Ver estado de los contenedores
+make ps          # Ver todos los contenedores Docker activos
 ```
 
-## Publicar Imagen En DockerHub
+---
 
-Primero inicia sesion:
+## Publicar una nueva versión en DockerHub
 
-```bash
-docker login
-```
-
-Construye la imagen:
+Si hiciste cambios en el código y quieres publicarlos:
 
 ```bash
-docker build -t nicolasgarciae1/proyecto1corte-api:v1 .
-```
-
-Sube la imagen:
-
-```bash
-docker push nicolasgarciae1/proyecto1corte-api:v1
-```
-
-Con Makefile:
-
-```bash
+# 1. Inicia sesión en DockerHub (solo la primera vez)
 make login
-make push DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1
+
+# 2. Construye y sube la imagen con la nueva versión
+make DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v2 push
 ```
 
-La imagen queda disponible como:
-
-```text
-nicolasgarciae1/proyecto1corte-api:v1
-```
-
-## GitHub Flow
-
-Flujo recomendado para trabajar:
+Luego, en la otra máquina, actualiza con:
 
 ```bash
+make DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v2 deploy
+```
+
+---
+
+## Estructura del sistema
+
+El `docker-compose.yml` levanta estos 8 servicios automáticamente:
+
+```
+proyecto1corte-app            → API FastAPI        → puerto 8014
+proyecto1corte-worker         → Consumer RabbitMQ  → (sin puerto externo)
+proyecto1corte-mysql          → Base de datos       → puerto 3307
+proyecto1corte-redis          → Caché y sesiones    → puerto 6380
+proyecto1corte-rabbitmq       → Cola de mensajes    → puertos 5673 / 15673
+proyecto1corte-redis-commander → Panel Redis        → puerto 8082
+proyecto1corte-dozzle         → Visor de logs       → puerto 8083
+proyecto1corte-portainer      → Admin Docker        → puerto 9443
+```
+
+Los servicios se comunican entre sí por la red interna de Docker usando nombres (`mysql`, `redis`, `rabbitmq`). No necesitan IPs.
+
+---
+
+## Endpoints de la API
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/` | Interfaz web |
+| `GET` | `/health` | Estado de la API |
+| `POST` | `/auth/register` | Crear cuenta |
+| `POST` | `/auth/login` | Iniciar sesión |
+| `GET` | `/auth/me` | Validar sesión activa |
+| `POST` | `/auth/logout` | Cerrar sesión |
+| `GET` | `/rutas` | Listar rutas disponibles |
+| `POST` | `/reservas` | Crear reserva |
+| `GET` | `/admin/dashboard` | Panel administrador |
+| `GET` | `/infra/status` | Estado de MySQL, Redis y RabbitMQ |
+
+---
+
+## Solución de problemas
+
+### "No existe el archivo .env"
+
+```bash
+make setup
+```
+
+---
+
+### Docker no responde o no está activo
+
+En WSL / Linux:
+
+```bash
+sudo service docker start
+```
+
+Si tampoco funciona:
+
+```bash
+sudo dockerd &
+```
+
+Espera 10 segundos y vuelve a intentar.
+
+---
+
+### "pull access denied" o "image not found"
+
+Significa que Docker no encontró la imagen. Si usas `make up`, construye primero:
+
+```bash
+make up
+```
+
+Si usas `make deploy`, verifica que `DOCKER_USERNAME` e `IMAGE_TAG` sean correctos:
+
+```bash
+make DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v1 deploy
+```
+
+---
+
+### Un puerto ya está en uso
+
+Si ves `address already in use`, algún puerto está ocupado por otro proceso. Verifica cuál:
+
+```bash
+# Ver qué proceso usa el puerto 8014
+sudo lsof -i :8014
+```
+
+O cambia el puerto en `docker-compose.yml` si no puedes liberar el que está ocupado.
+
+---
+
+### MySQL no arranca o dice "unhealthy"
+
+Espera 30-60 segundos, MySQL tarda en inicializarse la primera vez. Si sigue fallando:
+
+```bash
+docker logs proyecto1corte-mysql
+```
+
+Lee el error. Si el volumen tiene datos corruptos de un intento anterior:
+
+```bash
+docker compose down -v
+make setup
+make up
+```
+
+---
+
+### Reiniciar desde cero completamente
+
+```bash
+docker compose down -v    # Borra contenedores y volúmenes
+make setup                # Recrea .env
+make up                   # Levanta todo de nuevo
+```
+
+---
+
+## Flujo de trabajo con Git
+
+```bash
+# Antes de empezar a trabajar
 git checkout main
 git pull origin main
+
+# Crear rama para el cambio
 git checkout -b feature-nombre-del-cambio
+
+# Después de hacer los cambios
 git add .
-git commit -m "Descripcion del cambio"
+git commit -m "Descripcion clara del cambio"
 git push -u origin feature-nombre-del-cambio
 ```
 
-Luego abre un Pull Request hacia `main`, revisa los cambios y haz merge.
-
-La guia completa de despliegue esta en `DEPLOYMENT.md`.
-
-## Lo Que Incluye
-
-- Login y registro de usuarios.
-- Sesiones con token usando Redis.
-- Credenciales fijas del administrador:
-  - Usuario: `admin`
-  - Contrasena: `admin`
-- Panel administrador protegido por backend y frontend.
-- Usuarios normales pueden ver rutas e iniciar sesion para hacer reservas.
-- Redis para cache y sesiones.
-- RabbitMQ para publicar eventos operativos.
-- Worker para procesar la cola y guardar actividad reciente en Redis.
-- Logs JSON con `log_id` UUID en API y worker.
-- Dozzle para observar logs de contenedores.
-- Portainer para ver servicios, contenedores, imagenes, volumenes y redes.
-
-## Base De Datos
-
-MySQL se levanta automaticamente con Docker. El archivo `docker/mysql/init.sql` crea las tablas base `rutas` y `reservas`.
-
-La API tambien crea la tabla `users` automaticamente al arrancar y, si hace falta, agrega la columna `user_id` a `reservas`.
-
-Credenciales internas usadas por Docker Compose:
-
-```env
-MYSQL_HOST=mysql
-MYSQL_PORT=3306
-MYSQL_USER=api_user
-MYSQL_PASSWORD=123456
-MYSQL_DB=transporte_db
-REDIS_URL=redis://redis:6379/0
-RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-RABBITMQ_QUEUE=reservas_eventos
-```
-
-## Endpoints Principales
-
-- `GET /` interfaz web
-- `GET /health` estado basico de la API
-- `POST /auth/register` crear cuenta
-- `POST /auth/login` iniciar sesion
-- `GET /auth/me` validar sesion
-- `POST /auth/logout` cerrar sesion
-- `GET /rutas` listar rutas con ocupacion
-- `POST /reservas` crear reserva con sesion iniciada
-- `GET /admin/dashboard` panel admin
-- `GET /admin/eventos` eventos procesados
-- `GET /infra/status` estado de MySQL, Redis y RabbitMQ
-
-## Solucion De Problemas
-
-Si Docker no esta activo en WSL:
-
-```bash
-sudo dockerd
-```
-
-En otra terminal WSL, vuelve a ejecutar:
-
-```bash
-docker compose up -d --build
-```
-
-Si algun puerto esta ocupado, revisa:
-
-```bash
-docker compose ps
-docker ps
-```
-
-Si quieres reiniciar desde cero:
-
-```bash
-docker compose down -v
-make up
-```
-
-
-### Error: pull access denied for proyecto1corte-api
-
-Si aparece este error al ejecutar `make start` o `docker compose up`, significa que Docker intento descargar la imagen local `proyecto1corte-api:local` antes de construirla.
-
-Solucion:
-
-```bash
-DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
-DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
-```
-
-O simplemente usa:
-
-```bash
-make up
-```
+Luego abre un Pull Request en GitHub hacia `main`, revisa los cambios con tu equipo y haz merge.

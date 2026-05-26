@@ -1,46 +1,78 @@
 .DEFAULT_GOAL := help
 
-PROJECT_NAME ?= proyecto1corte
+PROJECT_NAME    ?= proyecto1corte
 DOCKER_USERNAME ?= usuario
-IMAGE_TAG ?= v1
-DOCKER_IMAGE ?= $(DOCKER_USERNAME)/$(PROJECT_NAME)-api:$(IMAGE_TAG)
+IMAGE_TAG       ?= v1
+LOCAL_IMAGE     := $(PROJECT_NAME)-api:local
+DOCKER_IMAGE    ?= $(DOCKER_USERNAME)/$(PROJECT_NAME)-api:$(IMAGE_TAG)
 
-.PHONY: help up down logs restart ps start portainer status build image images login tag push pull deploy github-flow
+.PHONY: help up down logs restart ps start portainer status build images login tag push pull deploy github-flow setup _check_user _check_env
 
 help:
-	@echo "Comandos disponibles:"
-	@echo "  make github-flow  Muestra el flujo de ramas recomendado"
-	@echo "  make up           Levanta los contenedores y reconstruye imagenes"
-	@echo "  make down         Detiene y elimina los contenedores"
-	@echo "  make logs         Muestra logs en tiempo real"
-	@echo "  make restart      Reinicia los contenedores reconstruyendo imagenes"
-	@echo "  make ps           Lista contenedores activos de Docker"
-	@echo "  make status       Muestra el estado de Docker Compose"
-	@echo "  make start        Ejecuta el arranque completo del proyecto en WSL"
-	@echo "  make portainer    Levanta solo Portainer"
-	@echo "  make build        Construye la imagen local"
-	@echo "  make login        Inicia sesion en DockerHub"
-	@echo "  make push         Publica la imagen en DockerHub"
-	@echo "  make pull         Descarga la imagen desde DockerHub"
-	@echo "  make deploy       Descarga imagen y levanta el sistema"
 	@echo ""
-	@echo "Variables:"
-	@echo "  DOCKER_USERNAME=$(DOCKER_USERNAME)"
-	@echo "  IMAGE_TAG=$(IMAGE_TAG)"
-	@echo "  DOCKER_IMAGE=$(DOCKER_IMAGE)"
+	@echo "  Uso: make [target] [DOCKER_USERNAME=tu_usuario] [IMAGE_TAG=v2]"
+	@echo ""
+	@echo "  Primera vez en una maquina nueva:"
+	@echo "    make setup        Crea .env a partir de .env.example"
+	@echo ""
+	@echo "  Desarrollo local:"
+	@echo "    make up           Construye imagen local y levanta contenedores"
+	@echo "    make down         Detiene y elimina los contenedores"
+	@echo "    make restart      Reinicia reconstruyendo la imagen"
+	@echo "    make logs         Muestra logs en tiempo real"
+	@echo "    make ps           Lista contenedores activos"
+	@echo "    make status       Estado de Docker Compose"
+	@echo "    make portainer    Levanta solo Portainer"
+	@echo "    make start        Arranque completo en WSL (script local)"
+	@echo ""
+	@echo "  DockerHub (requiere DOCKER_USERNAME):"
+	@echo "    make build        Construye imagen etiquetada para DockerHub"
+	@echo "    make images       Lista imagenes del proyecto"
+	@echo "    make login        Inicia sesion en DockerHub"
+	@echo "    make push         Construye y publica la imagen"
+	@echo "    make pull         Descarga la imagen desde DockerHub"
+	@echo "    make tag          Etiqueta imagen como :latest"
+	@echo "    make deploy       Descarga imagen y levanta el sistema"
+	@echo ""
+	@echo "  Variables actuales:"
+	@echo "    DOCKER_USERNAME = $(DOCKER_USERNAME)"
+	@echo "    IMAGE_TAG       = $(IMAGE_TAG)"
+	@echo "    LOCAL_IMAGE     = $(LOCAL_IMAGE)"
+	@echo "    DOCKER_IMAGE    = $(DOCKER_IMAGE)"
+	@echo ""
 
 github-flow:
-	@echo "GitHub Flow recomendado:"
-	@echo "  1. git checkout main && git pull origin main"
-	@echo "  2. git checkout -b feature-nombre"
-	@echo "  3. git add . && git commit -m 'Descripcion del cambio'"
-	@echo "  4. git push -u origin feature-nombre"
-	@echo "  5. Abrir Pull Request hacia main"
-	@echo "  6. Revisar, aprobar y hacer merge"
+	@echo ""
+	@echo "  GitHub Flow recomendado:"
+	@echo "    1. git checkout main && git pull origin main"
+	@echo "    2. git checkout -b feature-nombre"
+	@echo "    3. git add . && git commit -m 'Descripcion del cambio'"
+	@echo "    4. git push -u origin feature-nombre"
+	@echo "    5. Abrir Pull Request hacia main"
+	@echo "    6. Revisar, aprobar y hacer merge"
+	@echo ""
 
-up:
-	DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
-	DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
+# Guard: falla si DOCKER_USERNAME no fue sobreescrito
+_check_user:
+	@[ "$(DOCKER_USERNAME)" != "usuario" ] || \
+		{ echo "\nERROR: DOCKER_USERNAME sigue siendo el valor por defecto.\nUso: make DOCKER_USERNAME=tunombre <target>\n"; exit 1; }
+
+# Guard: falla si .env no existe
+_check_env:
+	@[ -f .env ] || \
+		{ echo "\nERROR: No existe el archivo .env.\nEjecuta primero: make setup\n"; exit 1; }
+
+# ── Primera vez ───────────────────────────────────────────────────────────────
+
+setup:
+	@[ -f .env ] && echo ".env ya existe, no se sobreescribe." || \
+		{ cp .env.example .env; echo "Archivo .env creado. Edita las contrasenas antes de continuar."; }
+
+# ── Desarrollo local ──────────────────────────────────────────────────────────
+
+up: _check_env
+	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose build app
+	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose up -d
 
 down:
 	docker compose down
@@ -48,24 +80,24 @@ down:
 logs:
 	docker compose logs -f
 
-restart:
-	docker compose down
-	DOCKER_IMAGE=proyecto1corte-api:local docker compose build app
-	DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
+restart: down up
 
 ps:
 	docker ps
 
-start:
-	sudo ./start_all.sh
+status:
+	docker compose ps
 
 portainer:
 	docker compose up -d portainer
 
-status:
-	docker compose ps
+start:
+	chmod +x ./start_all.sh
+	sudo bash ./start_all.sh
 
-build image:
+# ── DockerHub ─────────────────────────────────────────────────────────────────
+
+build: _check_user
 	docker build -t $(DOCKER_IMAGE) .
 
 images:
@@ -74,14 +106,14 @@ images:
 login:
 	docker login
 
-tag:
+tag: _check_user
 	docker tag $(DOCKER_IMAGE) $(DOCKER_USERNAME)/$(PROJECT_NAME)-api:latest
 
 push: build
 	docker push $(DOCKER_IMAGE)
 
-pull:
+pull: _check_user
 	docker pull $(DOCKER_IMAGE)
 
-deploy: pull
+deploy: _check_env pull
 	DOCKER_IMAGE=$(DOCKER_IMAGE) docker compose up -d
