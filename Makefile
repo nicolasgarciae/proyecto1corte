@@ -70,7 +70,7 @@ setup:
 # ── Desarrollo local ──────────────────────────────────────────────────────────
 
 up: _check_env
-	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose build app
+	docker build -t $(LOCAL_IMAGE) .
 	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose up -d
 
 down:
