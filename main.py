@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import secrets
 import uuid
 from contextlib import asynccontextmanager
@@ -61,6 +62,7 @@ class ReservaUpdate(BaseModel):
 class RegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     full_name: str = Field(..., min_length=3, max_length=100)
+    email: str = Field(..., min_length=5, max_length=120)
     password: str = Field(..., min_length=4, max_length=120)
 
 
@@ -209,6 +211,17 @@ def normalize_username(value: str) -> str:
     return normalize_text(value).lower()
 
 
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def normalize_email(value: str) -> str:
+    return normalize_text(value).lower()
+
+
+def is_valid_email(value: str) -> bool:
+    return bool(EMAIL_REGEX.match(value))
+
+
 def seat_to_index(seat: str) -> Optional[int]:
     if len(seat) < 2 or not seat[0].isalpha() or not seat[1:].isdigit():
         return None
@@ -234,6 +247,7 @@ def serialize_user(user: dict) -> dict:
         "id": user["id"],
         "username": user["username"],
         "full_name": user["full_name"],
+        "email": user.get("email"),
         "role": user["role"],
     }
 
@@ -257,12 +271,18 @@ async def ensure_user_schema():
                     id VARCHAR(36) PRIMARY KEY,
                     username VARCHAR(50) NOT NULL UNIQUE,
                     full_name VARCHAR(100) NOT NULL,
+                    email VARCHAR(120) NULL,
                     password_hash VARCHAR(64) NOT NULL,
                     role VARCHAR(20) NOT NULL DEFAULT 'user',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
+
+        await cursor.execute("SHOW COLUMNS FROM users LIKE 'email'")
+        email_col = await cursor.fetchone()
+        if not email_col:
+            await cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(120) NULL")
 
         await cursor.execute("SHOW COLUMNS FROM rutas LIKE 'precio'")
         precio_col = await cursor.fetchone()
@@ -457,7 +477,7 @@ async def get_user_by_username(conn, username: str):
     cursor = await conn.cursor(aiomysql.DictCursor)
     try:
         await cursor.execute(
-            "SELECT id, username, full_name, password_hash, role FROM users WHERE username=%s",
+            "SELECT id, username, full_name, email, password_hash, role FROM users WHERE username=%s",
             (username,),
         )
         return await cursor.fetchone()
@@ -542,7 +562,7 @@ async def get_reservations(conn, user_id: Optional[str] = None) -> list[dict]:
 
 
 async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[str] = None, fecha_reserva: Optional[str] = None):
-    await cursor.execute("SELECT capacidad, origen, destino FROM rutas WHERE id=%s FOR UPDATE", (ruta_id,))
+    await cursor.execute("SELECT capacidad, origen, destino, precio FROM rutas WHERE id=%s FOR UPDATE", (ruta_id,))
     ruta = await cursor.fetchone()
     if not ruta:
         raise HTTPException(status_code=404, detail="Ruta no encontrada")
@@ -577,6 +597,10 @@ async def health():
 async def register_user(payload: RegisterRequest, request: Request):
     username = normalize_username(payload.username)
     full_name = normalize_text(payload.full_name)
+    email = normalize_email(payload.email)
+
+    if not is_valid_email(email):
+        raise HTTPException(status_code=400, detail="El correo electronico no es valido")
 
     conn = await get_connection()
     cursor = await conn.cursor(aiomysql.DictCursor)
@@ -590,10 +614,10 @@ async def register_user(payload: RegisterRequest, request: Request):
 
         await cursor.execute(
             """
-            INSERT INTO users (id, username, full_name, password_hash, role)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO users (id, username, full_name, email, password_hash, role)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (user_id, username, full_name, hash_password(payload.password), "user"),
+            (user_id, username, full_name, email, hash_password(payload.password), "user"),
         )
         await conn.commit()
     finally:
@@ -604,6 +628,7 @@ async def register_user(payload: RegisterRequest, request: Request):
         "id": user_id,
         "username": username,
         "full_name": full_name,
+        "email": email,
         "role": "user",
     }
     token = await store_session(request.app, user)
@@ -856,6 +881,13 @@ async def crear_reserva(reserva: Reserva, request: Request):
         booking_date = reserva.fecha_reserva.isoformat()
         ruta, reservas_actuales = await get_route_capacity(cursor, reserva.ruta_id, fecha_reserva=booking_date)
         capacidad = int(get_first_value(ruta))
+        ruta_origen = ruta[1]
+        ruta_destino = ruta[2]
+        ruta_precio = int(ruta[3])
+
+        await cursor.execute("SELECT email FROM users WHERE id=%s", (current_user["id"],))
+        email_row = await cursor.fetchone()
+        user_email = email_row[0] if email_row else None
         if reservas_actuales >= capacidad:
             raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad maxima para esa fecha")
 
@@ -918,6 +950,10 @@ async def crear_reserva(reserva: Reserva, request: Request):
             "id": reserva_id,
             "nombre_pasajero": passenger_name,
             "ruta_id": reserva.ruta_id,
+            "origen": ruta_origen,
+            "destino": ruta_destino,
+            "precio": ruta_precio,
+            "email": user_email,
             "telefono": phone,
             "fecha_reserva": booking_date,
             "asiento": seat,

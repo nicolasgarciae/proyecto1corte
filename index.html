@@ -1604,6 +1604,11 @@
         <input id="auth-full-name" type="text" placeholder="Como quieres aparecer en la reserva" />
       </div>
 
+      <div class="field" id="auth-email-field" style="margin-top: 16px; display: none;">
+        <label for="auth-email">Correo electronico</label>
+        <input id="auth-email" type="email" placeholder="Te llegara la factura de la reserva" />
+      </div>
+
       <div class="field" style="margin-top: 16px;">
         <label for="auth-password">Contrasena</label>
         <input id="auth-password" type="password" placeholder="Tu contrasena" />
@@ -2119,6 +2124,7 @@
         button.classList.toggle("active", button.dataset.mode === state.authMode);
       });
       document.getElementById("auth-full-name-field").style.display = registerMode ? "grid" : "none";
+      document.getElementById("auth-email-field").style.display = registerMode ? "grid" : "none";
       document.getElementById("auth-submit-btn").textContent = registerMode ? "Crear cuenta" : "Entrar";
     }
 
@@ -2355,10 +2361,16 @@
     async function submitAuth() {
       const username = document.getElementById("auth-username").value.trim();
       const fullName = document.getElementById("auth-full-name").value.trim();
+      const email = document.getElementById("auth-email").value.trim();
       const password = document.getElementById("auth-password").value.trim();
 
-      if (!username || !password || (state.authMode === "register" && !fullName)) {
+      if (!username || !password || (state.authMode === "register" && (!fullName || !email))) {
         toast("Completa los campos requeridos.", "error");
+        return;
+      }
+
+      if (state.authMode === "register" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        toast("Ingresa un correo electronico valido.", "error");
         return;
       }
 
@@ -2366,7 +2378,7 @@
       try {
         const path = state.authMode === "register" ? "/auth/register" : "/auth/login";
         const payload = state.authMode === "register"
-          ? { username, full_name: fullName, password }
+          ? { username, full_name: fullName, email, password }
           : { username, password };
         const response = await apiFetch(path, {
           method: "POST",
@@ -2380,6 +2392,7 @@
         closeModal("auth-modal");
         document.getElementById("auth-username").value = "";
         document.getElementById("auth-full-name").value = "";
+        document.getElementById("auth-email").value = "";
         document.getElementById("auth-password").value = "";
         toast(state.authMode === "register" ? "Cuenta creada y sesion iniciada." : "Sesion iniciada correctamente.");
         if (isAdmin()) {

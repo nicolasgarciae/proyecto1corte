@@ -18,6 +18,13 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost/")
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "reservas_eventos")
 
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", os.getenv("SMTP_USER", "no-reply@reservaya.com"))
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "ReservaYa")
+
 
 async def get_connection():
     return await aiomysql.connect(

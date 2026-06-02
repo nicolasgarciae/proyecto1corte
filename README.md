@@ -80,9 +80,18 @@ MYSQL_PASSWORD=cambia_esta_contrasena
 MYSQL_DB=transporte_db
 RABBITMQ_USER=guest
 RABBITMQ_PASSWORD=guest
+
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=tu_correo@gmail.com
+SMTP_PASSWORD=tu_contrasena_de_aplicacion
+SMTP_FROM=tu_correo@gmail.com
+SMTP_FROM_NAME=ReservaYa
 ```
 
-**Cambia los valores de `MYSQL_ROOT_PASSWORD` y `MYSQL_PASSWORD`** por contraseñas seguras de tu elección. Las otras variables puedes dejarlas igual.
+**Cambia los valores de `MYSQL_ROOT_PASSWORD` y `MYSQL_PASSWORD`** por contraseñas seguras de tu elección. Las otras variables de MySQL/RabbitMQ puedes dejarlas igual.
+
+Las variables `SMTP_*` son para el envío de correos (factura de reserva). Si dejas `SMTP_HOST` vacío, el sistema funciona normal pero **no envía correos**. Para activarlos, ve a la sección [Configurar correos](#configurar-correos-opcional).
 
 Guarda con `Ctrl+O`, luego `Enter`, luego `Ctrl+X`.
 
@@ -285,14 +294,58 @@ Los servicios se comunican entre sí por la red interna de Docker usando nombres
 |---|---|---|
 | `GET` | `/` | Interfaz web |
 | `GET` | `/health` | Estado de la API |
-| `POST` | `/auth/register` | Crear cuenta |
+| `POST` | `/auth/register` | Crear cuenta (pide correo electrónico) |
 | `POST` | `/auth/login` | Iniciar sesión |
 | `GET` | `/auth/me` | Validar sesión activa |
 | `POST` | `/auth/logout` | Cerrar sesión |
 | `GET` | `/rutas` | Listar rutas disponibles |
-| `POST` | `/reservas` | Crear reserva |
+| `GET` | `/rutas/{id}/disponibilidad` | Asientos libres por fecha |
+| `POST` | `/reservas` | Crear reserva (envía factura por correo) |
+| `GET` | `/reservas/mias` | Reservas del usuario actual |
 | `GET` | `/admin/dashboard` | Panel administrador |
 | `GET` | `/infra/status` | Estado de MySQL, Redis y RabbitMQ |
+
+---
+
+## Configurar correos (opcional)
+
+Cuando un usuario hace una reserva, el sistema le envía la factura por correo. Para activarlo necesitas una cuenta de Gmail con **contraseña de aplicación**.
+
+### Paso 1 — Generar la contraseña de aplicación
+
+1. Entra a tu cuenta Google → activa la **verificación en 2 pasos**
+2. Ve a https://myaccount.google.com/apppasswords
+3. Crea una contraseña de aplicación → copia los 16 caracteres
+
+> ⚠️ Es la **contraseña de aplicación** (16 caracteres), NO la contraseña normal de tu correo.
+
+### Paso 2 — Editar el `.env`
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=tu_correo@gmail.com
+SMTP_PASSWORD=xxxx xxxx xxxx xxxx
+SMTP_FROM=tu_correo@gmail.com
+SMTP_FROM_NAME=ReservaYa
+```
+
+### Paso 3 — Reconstruir
+
+```bash
+docker compose down
+make up
+```
+
+### Verificar
+
+Registra un usuario con correo real, haz una reserva y revisa la bandeja (y spam). Si no llega, mira los logs del worker:
+
+```bash
+docker logs proyecto1corte-worker --tail 30
+```
+
+Busca `Correo de reserva enviado` (éxito) o `Fallo el envio de correo` (error con detalle).
 
 ---
 

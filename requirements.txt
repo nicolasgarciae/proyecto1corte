@@ -3,4 +3,5 @@ uvicorn
 aiomysql
 redis
 aio-pika
+aiosmtplib
 python-dotenv

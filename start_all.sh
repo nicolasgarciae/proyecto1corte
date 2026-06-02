@@ -37,7 +37,7 @@ sleep 1
 
 echo "[4/9] Construyendo imagen y levantando contenedores..."
 cd "$PROJECT_DIR"
-docker build -t proyecto1corte-api:local .
+DOCKER_BUILDKIT=0 docker build -t proyecto1corte-api:local .
 DOCKER_IMAGE=proyecto1corte-api:local docker compose up -d
 
 echo "[5/9] Sincronizando .env con IPs reales de Docker..."

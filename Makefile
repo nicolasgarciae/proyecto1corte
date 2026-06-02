@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := help
 
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
+export DOCKER_BUILDKIT=0
+
 PROJECT_NAME    ?= proyecto1corte
 DOCKER_USERNAME ?= usuario
 IMAGE_TAG       ?= v1
@@ -70,7 +73,7 @@ setup:
 # ── Desarrollo local ──────────────────────────────────────────────────────────
 
 up: _check_env
-	docker build -t $(LOCAL_IMAGE) .
+	docker build --provenance=false -t $(LOCAL_IMAGE) .
 	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose up -d
 
 down:
@@ -97,7 +100,7 @@ start:
 # ── DockerHub ─────────────────────────────────────────────────────────────────
 
 build: _check_user
-	docker build -t $(DOCKER_IMAGE) .
+	docker build --provenance=false -t $(DOCKER_IMAGE) .
 
 images:
 	docker images | grep $(PROJECT_NAME) || true
