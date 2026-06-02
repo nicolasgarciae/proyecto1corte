@@ -135,6 +135,47 @@ services:
       - portainer_data:/data
     restart: unless-stopped
 
+  db-backup:
+    image: mysql:8.0
+    container_name: proyecto1corte-db-backup
+    command: ["bash", "/backup.sh"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: ${MYSQL_USER:-api_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
+      MYSQL_DB: ${MYSQL_DB:-transporte_db}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-3600}
+      BACKUP_KEEP: ${BACKUP_KEEP:-24}
+    volumes:
+      - ./docker/backup/backup.sh:/backup.sh:ro
+      - db_backups:/backups
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  duplicati:
+    image: lscr.io/linuxserver/duplicati:latest
+    container_name: proyecto1corte-duplicati
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: ${TZ:-America/Bogota}
+      SETTINGS_ENCRYPTION_KEY: ${DUPLICATI_ENCRYPTION_KEY:-cambia_esta_llave_de_32_chars_min}
+      DUPLICATI__WEBSERVICE_PASSWORD: ${DUPLICATI_UI_PASSWORD:-admin}
+    ports:
+      - "8200:8200"
+    volumes:
+      - duplicati_config:/config
+      - db_backups:/source:ro
+      - duplicati_dest:/backups
+    depends_on:
+      - db-backup
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   portainer_data:
+  db_backups:
+  duplicati_dest:
+  duplicati_config:

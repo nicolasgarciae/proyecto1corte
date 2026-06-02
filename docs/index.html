@@ -211,6 +211,11 @@
       <div class="q mono">¿por qué migraciones en el arranque y no Alembic?</div>
       <p>El esquema base llega por <code>init.sql</code>. Las columnas nuevas (precio, email, estado_pago) se agregan con <code>SHOW COLUMNS ... IF NOT EXISTS</code> al levantar la app. Para el tamaño del proyecto, una herramienta de migraciones sobraba.</p>
     </div>
+
+    <div class="decision">
+      <div class="q mono">¿por qué dump y no respaldar el volumen de mysql?</div>
+      <p>Copiar <code>/var/lib/mysql</code> en caliente da un backup inconsistente —MySQL escribe mientras se copia y la restauración corrompe. Un contenedor hace <code>mysqldump --single-transaction</code> cada hora (snapshot lógico, sin bloquear) y Duplicati respalda esos dumps cifrados. El backup que no se puede restaurar no es backup.</p>
+    </div>
   </section>
 
   <section id="servicios">
@@ -224,6 +229,8 @@
       <tr><td class="mono">rabbitmq</td><td>cola de eventos</td><td class="tag">5673 / 15673</td></tr>
       <tr><td class="mono">portainer</td><td>admin docker</td><td class="tag">9443</td></tr>
       <tr><td class="mono">dozzle</td><td>logs en vivo</td><td class="tag">8083</td></tr>
+      <tr><td class="mono">db-backup</td><td>mysqldump periódico</td><td class="tag">—</td></tr>
+      <tr><td class="mono">duplicati</td><td>backups cifrados</td><td class="tag">8200</td></tr>
     </table>
   </section>
 

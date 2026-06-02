@@ -205,6 +205,7 @@ Abre tu navegador y entra a las siguientes direcciones:
 | **Redis Commander** | http://localhost:8082 | Visor de caché y sesiones |
 | **Dozzle** | http://localhost:8083 | Logs de contenedores en tiempo real |
 | **Portainer** | https://localhost:9443 | Administración de Docker |
+| **Duplicati** | http://localhost:8200 | Backups cifrados de la base de datos |
 
 > **Portainer** puede mostrar una advertencia de seguridad porque usa HTTPS con certificado autofirmado. Haz clic en "Avanzado" → "Continuar de todas formas".
 > La **primera vez** que abras Portainer te pedirá crear un usuario administrador.
@@ -271,17 +272,19 @@ make DOCKER_USERNAME=nicolasgarciae1 IMAGE_TAG=v2 deploy
 
 ## Estructura del sistema
 
-El `docker-compose.yml` levanta estos 8 servicios automáticamente:
+El `docker-compose.yml` levanta estos 10 servicios automáticamente:
 
 ```
-proyecto1corte-app            → API FastAPI        → puerto 8014
-proyecto1corte-worker         → Consumer RabbitMQ  → (sin puerto externo)
-proyecto1corte-mysql          → Base de datos       → puerto 3307
-proyecto1corte-redis          → Caché y sesiones    → puerto 6380
-proyecto1corte-rabbitmq       → Cola de mensajes    → puertos 5673 / 15673
-proyecto1corte-redis-commander → Panel Redis        → puerto 8082
-proyecto1corte-dozzle         → Visor de logs       → puerto 8083
-proyecto1corte-portainer      → Admin Docker        → puerto 9443
+proyecto1corte-app            → API FastAPI            → puerto 8014
+proyecto1corte-worker         → Consumer RabbitMQ      → (sin puerto externo)
+proyecto1corte-mysql          → Base de datos           → puerto 3307
+proyecto1corte-redis          → Caché y sesiones        → puerto 6380
+proyecto1corte-rabbitmq       → Cola de mensajes        → puertos 5673 / 15673
+proyecto1corte-redis-commander → Panel Redis            → puerto 8082
+proyecto1corte-dozzle         → Visor de logs           → puerto 8083
+proyecto1corte-portainer      → Admin Docker            → puerto 9443
+proyecto1corte-db-backup      → Dumps automáticos MySQL → (sin puerto externo)
+proyecto1corte-duplicati      → Backups cifrados        → puerto 8200
 ```
 
 Los servicios se comunican entre sí por la red interna de Docker usando nombres (`mysql`, `redis`, `rabbitmq`). No necesitan IPs.
@@ -304,6 +307,59 @@ Los servicios se comunican entre sí por la red interna de Docker usando nombres
 | `GET` | `/reservas/mias` | Reservas del usuario actual |
 | `GET` | `/admin/dashboard` | Panel administrador |
 | `GET` | `/infra/status` | Estado de MySQL, Redis y RabbitMQ |
+
+---
+
+## Backups de la base de datos
+
+El sistema respalda MySQL automáticamente con dos servicios:
+
+- **`db-backup`** — hace un `mysqldump` consistente (`--single-transaction`, no bloquea la DB) cada hora y lo guarda en el volumen `db_backups`. Conserva los últimos 24 dumps.
+- **`duplicati`** — toma esos dumps y los respalda **cifrados** a un destino (carpeta local, Google Drive, S3, etc.) con interfaz web.
+
+```
+mysql ──► db-backup (mysqldump cada 1h) ──► volumen db_backups
+                                                  │ /source (solo lectura)
+                                                  ▼
+                                             duplicati ──► cifra ──► destino
+```
+
+### Configurar Duplicati
+
+1. Abre `http://localhost:8200`
+2. **Add backup** → Configure a new backup
+3. **General**: nombre + una **passphrase de cifrado** (guárdala, sin ella no se puede restaurar)
+4. **Destination**: `Local folder` → ruta `/backups` (o conecta Google Drive / S3)
+5. **Source data**: marca la carpeta `/source` (ahí están los dumps de MySQL)
+6. **Schedule**: cada día u hora
+7. Guardar → **Run now**
+
+### Ajustar frecuencia
+
+En el `.env`:
+
+```env
+BACKUP_INTERVAL=3600   # segundos entre dumps (3600 = 1 hora)
+BACKUP_KEEP=24         # cuántos dumps conservar
+```
+
+### Verificar que funciona
+
+```bash
+docker logs proyecto1corte-db-backup --tail 5
+```
+
+Debe mostrar `[backup] ok /backups/transporte_db_...sql`.
+
+### Restaurar un backup
+
+```bash
+# 1. Duplicati restaura el archivo .sql desde su UI
+# 2. Cargarlo a MySQL:
+docker exec -i proyecto1corte-mysql mysql -uapi_user -pTU_PASSWORD transporte_db < dump.sql
+```
+
+> ⚠️ Nunca respaldes el volumen `/var/lib/mysql` directo (en caliente queda inconsistente). Por eso usamos `mysqldump`: genera un snapshot lógico restaurable.
 
 ---
 
