@@ -54,19 +54,18 @@ github-flow:
 
 # Guard: falla si DOCKER_USERNAME no fue sobreescrito
 _check_user:
-	@[ "$(DOCKER_USERNAME)" != "usuario" ] || \
-		{ echo "\nERROR: DOCKER_USERNAME sigue siendo el valor por defecto.\nUso: make DOCKER_USERNAME=tunombre <target>\n"; exit 1; }
+	@python3 -c "import sys; sys.exit('\nERROR: DOCKER_USERNAME sigue siendo el valor por defecto.\nUso: make DOCKER_USERNAME=tunombre <target>\n') if '$(DOCKER_USERNAME)'=='usuario' else None"
 
 # Guard: falla si .env no existe
 _check_env:
-	@[ -f .env ] || \
-		{ echo "\nERROR: No existe el archivo .env.\nEjecuta primero: make setup\n"; exit 1; }
+	@python3 -c "import os,sys; sys.exit('\nERROR: No existe .env.\nEjecuta primero: make setup\n') if not os.path.exists('.env') else None"
 
 # ── Primera vez ───────────────────────────────────────────────────────────────
 
 setup:
-	@[ -f .env ] && echo ".env ya existe, no se sobreescribe." || \
-		{ cp .env.example .env; echo "Archivo .env creado. Edita las contrasenas antes de continuar."; }
+	@python3 -c "import shutil,os; \
+		print('.env ya existe, no se sobreescribe.') if os.path.exists('.env') \
+		else (shutil.copy('.env.example','.env'), print('Archivo .env creado. Edita las contrasenas antes de continuar.'))"
 
 # ── Desarrollo local ──────────────────────────────────────────────────────────
 
