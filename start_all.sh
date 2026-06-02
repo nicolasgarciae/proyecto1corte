@@ -76,7 +76,10 @@ ordered = [
     "RABBITMQ_URL",
     "RABBITMQ_QUEUE",
 ]
-env_path.write_text("\\n".join(f"{key}={mapping[key]}" for key in ordered) + "\\n")
+# Preservar cualquier otra clave (SMTP_*, etc.) que ya estuviera en .env
+extra = [k for k in mapping if k not in ordered]
+all_keys = ordered + extra
+env_path.write_text("\\n".join(f"{key}={mapping[key]}" for key in all_keys) + "\\n")
 print(env_path.read_text(), end="")
 PY
 
