@@ -73,7 +73,7 @@ setup:
 # ── Desarrollo local ──────────────────────────────────────────────────────────
 
 up: _check_env
-	docker build --provenance=false -t $(LOCAL_IMAGE) .
+	docker build -t $(LOCAL_IMAGE) .
 	DOCKER_IMAGE=$(LOCAL_IMAGE) docker compose up -d
 
 down:
@@ -100,7 +100,7 @@ start:
 # ── DockerHub ─────────────────────────────────────────────────────────────────
 
 build: _check_user
-	docker build --provenance=false -t $(DOCKER_IMAGE) .
+	docker build -t $(DOCKER_IMAGE) .
 
 images:
 	docker images | grep $(PROJECT_NAME) || true
