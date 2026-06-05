@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reserva Ya - Acceso y Operaciones</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <title>ReservaYa — Reserva tu cupo de bus</title>
+  <meta name="description" content="Reserva tu asiento de bus intermunicipal por fecha, paga seguro y recibe tu factura. Sin doble venta, cupo garantizado." />
+  <meta name="theme-color" content="#07111f" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234dd7a8'/%3E%3Cstop offset='1' stop-color='%23ff9f43'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='28' font-weight='700' fill='%2305231c' text-anchor='middle'%3ERY%3C/text%3E%3C/svg%3E" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -18,6 +21,7 @@
       --muted: #8fa4c2;
       --accent: #4dd7a8;
       --accent-alt: #ff9f43;
+      --accent-alt-text: #ffc081;
       --danger: #ff6b6b;
       --success: #57cc99;
       --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
@@ -29,7 +33,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      font-family: "DM Sans", sans-serif;
+      font-family: "Sora", sans-serif;
       color: var(--text);
       background:
         radial-gradient(circle at top left, rgba(77, 215, 168, 0.13), transparent 28%),
@@ -52,6 +56,11 @@
 
     button, input, select {
       font: inherit;
+    }
+
+    select option {
+      background: #0b1d31;
+      color: #edf4ff;
     }
 
     .hidden {
@@ -91,7 +100,7 @@
     }
 
     .brand h1 {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 22px;
       letter-spacing: -0.04em;
     }
@@ -194,9 +203,9 @@
     .layout {
       position: relative;
       z-index: 1;
-      max-width: 1240px;
+      max-width: 1480px;
       margin: 0 auto;
-      padding: 56px 40px 72px;
+      padding: 56px 56px 72px;
       display: grid;
       gap: 24px;
     }
@@ -229,7 +238,7 @@
     .table-card h3,
     .admin-panel h3,
     .status-card h3 {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       letter-spacing: -0.05em;
     }
 
@@ -300,7 +309,7 @@
     .stat-box strong,
     .metric-card strong {
       display: block;
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 28px;
     }
 
@@ -406,7 +415,7 @@
     }
 
     .route-title {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 21px;
     }
 
@@ -536,7 +545,7 @@
     }
 
     .row-main strong {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 18px;
     }
 
@@ -615,7 +624,7 @@
     }
 
     .modal-head h3 {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 28px;
       letter-spacing: -0.05em;
     }
@@ -677,7 +686,7 @@
 
     .bus-head strong,
     .payment-box strong {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       letter-spacing: -0.03em;
     }
 
@@ -715,7 +724,7 @@
     .driver-area {
       position: absolute;
       top: 14px;
-      right: 16px;
+      left: 16px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -849,9 +858,9 @@
     }
 
     .status-pill.warn {
-      color: var(--accent-alt);
-      background: rgba(255, 159, 67, 0.12);
-      border-color: rgba(255, 159, 67, 0.2);
+      color: var(--accent-alt-text);
+      background: rgba(255, 159, 67, 0.14);
+      border-color: rgba(255, 159, 67, 0.3);
     }
 
     .price-badge {
@@ -875,7 +884,7 @@
     }
 
     .city-name {
-      font-family: "Syne", sans-serif;
+      font-family: "Sora", sans-serif;
       font-size: 20px;
       font-weight: 700;
       letter-spacing: -0.03em;
@@ -1094,6 +1103,316 @@
       font-size: 15px;
     }
 
+    @keyframes skeleton-shimmer {
+      0% { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton-card {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      background: rgba(255,255,255,0.02);
+    }
+    .sk {
+      border-radius: 8px;
+      background: linear-gradient(90deg, rgba(143,164,194,0.08) 25%, rgba(143,164,194,0.16) 50%, rgba(143,164,194,0.08) 75%);
+      background-size: 800px 100%;
+      animation: skeleton-shimmer 1.3s infinite linear;
+    }
+    .sk-title { height: 22px; width: 70%; margin-bottom: 18px; }
+    .sk-row { height: 14px; width: 100%; margin-bottom: 10px; }
+    .sk-row.short { width: 55%; }
+    .sk-actions { height: 38px; width: 100%; margin-top: 18px; border-radius: 999px; }
+
+    .terms-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      font-size: 13.5px;
+      color: var(--muted);
+      cursor: pointer;
+      line-height: 1.45;
+    }
+    .terms-row input[type="checkbox"] {
+      width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+      accent-color: var(--accent); cursor: pointer;
+    }
+    .terms-row a { color: var(--accent); text-decoration: underline; }
+
+    .terms-body {
+      max-height: 52vh;
+      overflow-y: auto;
+      padding: 4px 4px 4px 0;
+      margin-top: 8px;
+    }
+    .terms-body p {
+      font-size: 13.5px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+    .terms-body strong { color: var(--text); }
+
+    .occ-legend {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .occ-legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .occ-dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+    .occ-dot.free { background: rgba(77,215,168,0.25); border: 1px solid var(--accent); }
+    .occ-dot.taken { background: rgba(255,107,107,0.25); border: 1px solid var(--danger); }
+
+    .occ-seat {
+      display: grid;
+      place-items: center;
+      padding: 10px 4px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid rgba(143,164,194,0.18);
+    }
+    .occ-seat.free { background: rgba(77,215,168,0.1); color: var(--accent); border-color: rgba(77,215,168,0.4); }
+    .occ-seat.taken { background: rgba(255,107,107,0.12); color: var(--danger); border-color: rgba(255,107,107,0.45); }
+
+    .resv-filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    .resv-filters input,
+    .resv-filters select {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(143,164,194,0.2);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      outline: none;
+      font-size: 14px;
+    }
+    .resv-filters select { flex: 1; min-width: 160px; }
+    .resv-filters select option {
+      background: #0b1d31;
+      color: var(--text);
+    }
+
+    .resv-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .resv-stat {
+      flex: 1;
+      min-width: 140px;
+      padding: 14px 18px;
+      border-radius: 14px;
+      background: rgba(77,215,168,0.06);
+      border: 1px solid rgba(77,215,168,0.18);
+    }
+    .resv-stat strong {
+      display: block;
+      font-size: 24px;
+      color: var(--accent);
+      font-family: inherit;
+    }
+    .resv-stat span { font-size: 12.5px; color: var(--muted); }
+
+    .faq {
+      margin: 56px auto 0;
+      max-width: 880px;
+      width: 100%;
+      text-align: center;
+    }
+    .faq .section-title,
+    .faq .section-subtitle { text-align: center; }
+    .faq-item { text-align: left; }
+    .faq-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.025);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .faq-item summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 50px 16px 20px;
+      font-weight: 600;
+      font-size: 15.5px;
+      color: var(--text);
+      position: relative;
+      user-select: none;
+    }
+    .faq-item summary::-webkit-details-marker { display: none; }
+    .faq-item summary::after {
+      content: "+";
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 22px;
+      font-weight: 400;
+      color: var(--accent);
+      transition: transform 0.2s;
+    }
+    .faq-item[open] summary::after {
+      content: "−";
+    }
+    .faq-item[open] summary { color: var(--accent); }
+    .faq-item p {
+      padding: 0 20px 18px;
+      color: var(--muted);
+      font-size: 14.5px;
+      line-height: 1.65;
+    }
+
+    .route-schedules {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+
+    .horario-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .horario-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(143,164,194,0.22);
+      background: rgba(255,255,255,0.03);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .horario-btn:hover { border-color: rgba(77,215,168,0.4); }
+    .horario-btn.active {
+      border-color: var(--accent);
+      background: rgba(77,215,168,0.1);
+    }
+    .horario-tag { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .horario-btn.active .horario-tag { color: var(--accent); }
+    .horario-time { font-size: 15px; font-weight: 700; }
+
+    .trip-search {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      padding: 20px 24px;
+      border-radius: 22px;
+      border: 1px solid rgba(77,215,168,0.25);
+      background:
+        radial-gradient(circle at top left, rgba(77,215,168,0.08), transparent 50%),
+        var(--surface);
+      box-shadow: var(--shadow);
+      margin-top: -8px;
+    }
+    .trip-search-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .trip-search-field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      padding-left: 4px;
+    }
+    .trip-search-field input {
+      padding: 13px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(143,164,194,0.2);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      outline: none;
+      font-size: 15px;
+      width: 100%;
+    }
+    .trip-search-field input::placeholder { color: var(--muted); }
+    .trip-search-field input:focus { border-color: rgba(77,215,168,0.5); box-shadow: 0 0 0 3px rgba(77,215,168,0.1); }
+    .trip-search-arrow {
+      color: var(--accent);
+      font-size: 20px;
+      padding-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .btn-search {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 26px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      color: #05231c;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      transition: transform 0.2s;
+    }
+    .btn-search:hover { transform: translateY(-2px); }
+
+    @media (max-width: 760px) {
+      .trip-search { flex-wrap: wrap; }
+      .trip-search-field { flex: 1 1 100%; }
+      .trip-search-arrow { display: none; }
+      .btn-search { width: 100%; justify-content: center; }
+    }
+
+    .cta-band {
+      margin: 64px auto 8px;
+      max-width: 880px;
+      text-align: center;
+      padding: 48px 32px;
+      border-radius: 24px;
+      border: 1px solid rgba(77,215,168,0.25);
+      background:
+        radial-gradient(circle at top, rgba(77,215,168,0.12), transparent 60%),
+        rgba(77,215,168,0.04);
+    }
+    .cta-band h3 {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .cta-band p {
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 520px;
+      margin: 0 auto 26px;
+    }
+    .btn-cta {
+      padding: 14px 34px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      color: #05231c;
+      background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+      box-shadow: 0 14px 30px rgba(77,215,168,0.25);
+      transition: transform 0.2s;
+    }
+    .btn-cta:hover { transform: translateY(-2px); }
+
     footer {
       margin-top: auto;
       border-top: 1px solid var(--border);
@@ -1101,50 +1420,83 @@
       backdrop-filter: blur(10px);
     }
 
-    .footer-inner {
+    .footer-top {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 24px 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
+      padding: 48px 40px 32px;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1.4fr;
+      gap: 32px;
+    }
+    .footer-col h4 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .footer-col a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 10px;
+      transition: color 0.2s;
+    }
+    .footer-col a:hover { color: var(--accent); }
+    .footer-about p {
+      color: var(--muted);
+      font-size: 14px;
+      margin: 14px 0 12px;
+      max-width: 280px;
+      line-height: 1.6;
+    }
+    .footer-trust {
+      font-size: 12.5px;
+      color: var(--accent);
     }
 
     .footer-brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
       color: var(--text);
     }
 
     .footer-brand-mark {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       display: grid;
       place-items: center;
-      border-radius: 8px;
+      border-radius: 9px;
       background: linear-gradient(135deg, var(--accent), var(--accent-alt));
       color: #05231c;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
     }
 
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 40px;
+      border-top: 1px solid var(--border);
+    }
     .footer-copy {
       font-size: 13px;
       color: var(--muted);
     }
 
+    @media (max-width: 860px) {
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 28px; }
+    }
     @media (max-width: 480px) {
-      .footer-inner {
-        padding: 20px 14px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+      .footer-top {
+        grid-template-columns: 1fr;
+        padding: 32px 20px 24px;
       }
+      .footer-bottom { padding: 18px 20px; }
     }
 
     .hero-visual {
@@ -1389,19 +1741,19 @@
           <circle cx="72" cy="218" r="11" fill="rgba(77,215,168,0.15)"/>
           <circle cx="72" cy="218" r="6"  fill="#4dd7a8"/>
           <text x="85" y="222" fill="#8fa4c2" font-size="11.5"
-                font-family="DM Sans,sans-serif" font-weight="500">Bogotá</text>
+                font-family="Sora,sans-serif" font-weight="500">Bogotá</text>
 
           <!-- City: Manizales (waypoint) -->
           <circle cx="208" cy="114" r="9"  fill="rgba(77,215,168,0.14)"/>
           <circle cx="208" cy="114" r="4.5" fill="#4dd7a8" opacity="0.8"/>
           <text x="219" y="118" fill="#8fa4c2" font-size="10.5"
-                font-family="DM Sans,sans-serif">Manizales</text>
+                font-family="Sora,sans-serif">Manizales</text>
 
           <!-- City: Medellin (destination) -->
           <circle cx="328" cy="155" r="11" fill="rgba(255,159,67,0.15)"/>
           <circle cx="328" cy="155" r="6"  fill="#ff9f43"/>
           <text x="340" y="159" fill="#8fa4c2" font-size="11.5"
-                font-family="DM Sans,sans-serif" font-weight="500">Medellín</text>
+                font-family="Sora,sans-serif" font-weight="500">Medellín</text>
 
           <!-- Bus (floating) -->
           <g class="hero-bus" transform="translate(150,114)">
@@ -1455,30 +1807,108 @@
 
     </section>
 
+    <div class="trip-search">
+      <div class="trip-search-field">
+        <label>Origen</label>
+        <input id="search-origen" list="cities-origen" placeholder="¿Desde dónde sales?" autocomplete="off" />
+        <datalist id="cities-origen"></datalist>
+      </div>
+      <span class="trip-search-arrow">→</span>
+      <div class="trip-search-field">
+        <label>Destino</label>
+        <input id="search-destino" list="cities-destino" placeholder="¿A dónde vas?" autocomplete="off" />
+        <datalist id="cities-destino"></datalist>
+      </div>
+      <div class="trip-search-field">
+        <label>Fecha</label>
+        <input id="search-fecha" type="date" />
+      </div>
+      <button type="button" class="btn-search" id="btn-trip-search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Buscar
+      </button>
+    </div>
+
     <section class="view active" id="view-rutas">
       <div class="section-head">
         <div>
-          <h3 class="section-title">Rutas disponibles</h3>
-          <p class="section-subtitle">Todos pueden ver las rutas. Solo usuarios autenticados pueden confirmar una reserva.</p>
+          <h3 class="section-title">Próximos viajes</h3>
+          <p class="section-subtitle">Los viajes más cercanos. Usa el buscador de arriba para encontrar el tuyo.</p>
         </div>
         <div class="panel-actions">
-          <button class="ghost-btn" id="refresh-routes-btn" title="Actualizar rutas">
+          <button class="ghost-btn" id="refresh-routes-btn" title="Actualizar viajes">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            <span class="btn-label">Actualizar rutas</span>
+            <span class="btn-label">Actualizar</span>
           </button>
         </div>
       </div>
 
-      <div class="route-search">
-        <input id="route-filter" type="text" placeholder="Buscar por ciudad de origen o destino..." autocomplete="off" />
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
+      <div class="routes-grid" id="rutas-container"></div>
+
+      <div class="faq" id="faq-anchor">
+        <h3 class="section-title" style="margin-bottom: 6px;">Preguntas frecuentes</h3>
+        <p class="section-subtitle" style="margin-bottom: 18px;">Lo que la gente suele preguntar antes de reservar.</p>
+
+        <details class="faq-item">
+          <summary>¿Cómo reservo un pasaje?</summary>
+          <p>Inicia sesión, elige una ruta, selecciona la fecha del viaje y un asiento libre para ese día, y confirma el pago. Recibirás la factura en tu correo.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿El asiento que elijo es para la fecha exacta del viaje?</summary>
+          <p>Sí. La disponibilidad de cada asiento depende del día. El asiento que reservas queda garantizado solo para esa fecha; el mismo asiento puede estar libre otro día.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Puedo cancelar una reserva que ya pagué?</summary>
+          <p>Sí, desde "Mis reservas", siempre que sea antes del día del viaje. Al cancelar, tu asiento queda liberado para otra persona.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Me devuelven el dinero si cancelo?</summary>
+          <p>Las condiciones de reembolso las define cada empresa de transporte y se muestran al momento de reservar. ReservaYa libera el cupo, pero el reembolso depende de la política del operador.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Cómo recibo mi factura?</summary>
+          <p>Apenas confirmas la reserva, te llega al correo registrado con los detalles del viaje y lo que pagaste. También puedes descargar un comprobante en PDF.</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿ReservaYa es la empresa de buses?</summary>
+          <p>No. ReservaYa es la plataforma que te permite reservar y pagar el cupo. El viaje lo presta y responde por él la empresa de transporte (el operador).</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Qué hacen con mis datos personales?</summary>
+          <p>Usamos tu nombre, correo y teléfono solo para gestionar tus reservas y enviarte los comprobantes. No vendemos tus datos. Puedes pedir conocer, corregir o eliminar tu información cuando quieras (Ley 1581 de 2012).</p>
+        </details>
+
+        <details class="faq-item">
+          <summary>¿Qué pasa si el bus se retrasa o no sale?</summary>
+          <p>Esos casos son responsabilidad de la empresa de transporte, no de ReservaYa. Te recomendamos contactar directamente al operador para retrasos, cambios o novedades del viaje.</p>
+        </details>
       </div>
 
-      <div class="routes-grid" id="rutas-container">
-        <div class="loading"><div><div class="spinner"></div>Cargando rutas...</div></div>
+      <div class="cta-band" id="cta-band">
+        <h3 id="cta-title">¿Listo para viajar?</h3>
+        <p id="cta-text">Crea tu cuenta y reserva tu cupo en segundos. Asiento garantizado y factura al correo.</p>
+        <button class="btn-cta" id="cta-btn">Crear cuenta</button>
       </div>
+    </section>
+
+    <section class="view" id="view-resultados">
+      <div class="section-head">
+        <div>
+          <h3 class="section-title">Resultados de tu búsqueda</h3>
+          <p class="section-subtitle" id="resultados-info">Viajes que coinciden con tu búsqueda.</p>
+        </div>
+        <div class="panel-actions">
+          <button class="ghost-btn" id="back-to-home-btn">← Volver</button>
+        </div>
+      </div>
+
+      <div class="routes-grid" id="resultados-container"></div>
     </section>
 
     <section class="view" id="view-mis-reservas">
@@ -1542,6 +1972,18 @@
               <label for="admin-ruta-precio">Precio del ticket (COP)</label>
               <input id="admin-ruta-precio" type="number" min="0" step="1000" placeholder="Ej: 25000" />
             </div>
+            <div class="field">
+              <label for="admin-ruta-fecha">Fecha del viaje</label>
+              <input id="admin-ruta-fecha" type="date" />
+            </div>
+            <div class="field">
+              <label for="admin-ruta-salida-manana">Salida mañana</label>
+              <input id="admin-ruta-salida-manana" type="time" value="06:00" />
+            </div>
+            <div class="field">
+              <label for="admin-ruta-salida-tarde">Salida tarde / noche</label>
+              <input id="admin-ruta-salida-tarde" type="time" value="18:00" />
+            </div>
           </div>
 
           <button class="submit-btn" id="btn-admin-ruta">Crear ruta</button>
@@ -1562,17 +2004,33 @@
         <div class="table-card">
           <div class="panel-head">
             <div>
-              <h3>Reservas y actividad</h3>
-              <p class="muted">Historial de reservas y eventos procesados para control operativo.</p>
+              <h3>Reservas activas</h3>
+              <p class="muted">Filtra por fecha y ruta. El recaudado suma los pasajes pagados.</p>
             </div>
           </div>
+
+          <div class="resv-filters">
+            <input id="resv-filter-date" type="date" />
+            <select id="resv-filter-route"><option value="">Todas las rutas</option></select>
+            <button class="ghost-btn" id="resv-filter-clear">Limpiar</button>
+          </div>
+
+          <div class="resv-summary" id="resv-summary"></div>
 
           <div class="table-list" id="admin-reservas-container">
             <div class="loading"><div><div class="spinner"></div>Cargando reservas...</div></div>
           </div>
+        </div>
 
-          <div class="table-list" id="admin-eventos-container">
-            <div class="empty">Sin eventos cargados aun.</div>
+        <div class="table-card">
+          <div class="panel-head">
+            <div>
+              <h3>Reembolsos pendientes</h3>
+              <p class="muted">Cancelaciones con dinero por devolver. Marca cada una al pagarla.</p>
+            </div>
+          </div>
+          <div class="table-list" id="admin-reembolsos-container">
+            <div class="empty">Sin reembolsos pendientes.</div>
           </div>
         </div>
       </div>
@@ -1614,7 +2072,69 @@
         <input id="auth-password" type="password" placeholder="Tu contrasena" />
       </div>
 
+      <label class="terms-row" id="auth-terms-field" style="display: none;">
+        <input type="checkbox" id="auth-terms" />
+        <span>Acepto los <a href="#" id="open-terms-link">terminos y la politica de tratamiento de datos</a>.</span>
+      </label>
+
       <button class="submit-btn" id="auth-submit-btn" style="margin-top: 18px; width: 100%;">Entrar</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="terms-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3>Terminos y politica de datos</h3>
+          <p class="muted">ReservaYa — ultima actualizacion 2026</p>
+        </div>
+        <button class="close-btn" id="close-terms-modal">x</button>
+      </div>
+      <div class="terms-body">
+        <p><strong>1. Que es ReservaYa.</strong> ReservaYa es una plataforma que conecta pasajeros con empresas de transporte intermunicipal (operadores). No somos una empresa de transporte: no operamos buses ni prestamos el servicio de viaje. Facilitamos la reserva y el pago del cupo. El servicio de transporte lo presta y responde por el el operador.</p>
+        <p><strong>2. Tu cuenta.</strong> Para reservar debes crear una cuenta con datos reales (nombre, correo, telefono). Eres responsable de la veracidad de esa informacion y de la seguridad de tu contrasena. La cuenta es de uso personal.</p>
+        <p><strong>3. Reservas y pago.</strong> Al reservar eliges ruta, fecha y asiento, y pagas el valor mostrado. La confirmacion y la factura se envian a tu correo. El cupo queda garantizado para esa fecha y asiento.</p>
+        <p><strong>4. Cancelaciones y reembolsos.</strong> Puedes cancelar tu reserva antes del dia del viaje desde tu cuenta. Al cancelar, el asiento queda liberado. Las condiciones de reembolso las define cada operador. ReservaYa no garantiza reembolsos por su cuenta.</p>
+        <p><strong>5. Responsabilidad.</strong> ReservaYa responde por el funcionamiento de la plataforma de reservas. No responde por la prestacion del viaje: horarios, retrasos, cancelaciones del operador, estado del bus o incidentes durante el trayecto. Eso es responsabilidad del operador.</p>
+        <p><strong>6. Tratamiento de datos (Ley 1581 de 2012).</strong> Recogemos tu nombre, correo y telefono con el unico fin de gestionar tus reservas y enviarte los comprobantes. No vendemos tus datos. Tienes derecho a conocer, actualizar, rectificar y solicitar la eliminacion de tu informacion. Al crear la cuenta, autorizas este tratamiento.</p>
+        <p><strong>7. Uso aceptable.</strong> No puedes usar la plataforma para fraude, reservas falsas, ni vulnerar el sistema. Podemos suspender cuentas que incumplan.</p>
+        <p><strong>8. Cambios.</strong> Podemos actualizar estos terminos. Los cambios se publican en la plataforma. El uso continuado implica aceptacion.</p>
+      </div>
+      <button class="submit-btn" id="terms-accept-btn" style="margin-top: 16px; width: 100%;">Entendido</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="occupancy-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="occ-title">Ocupacion de la ruta</h3>
+          <p class="muted" id="occ-route-info">Selecciona una fecha</p>
+        </div>
+        <button class="close-btn" id="close-occupancy-modal">x</button>
+      </div>
+
+      <div class="field" style="margin-bottom: 14px;">
+        <label for="occ-horario">Horario</label>
+        <select id="occ-horario">
+          <option value="manana">Mañana</option>
+          <option value="tarde">Tarde / Noche</option>
+        </select>
+      </div>
+
+      <div class="occ-legend">
+        <span><span class="occ-dot free"></span> Libre</span>
+        <span><span class="occ-dot taken"></span> Ocupado</span>
+      </div>
+
+      <div class="bus-shell" style="position: relative; margin-top: 12px;">
+        <div class="bus-body">
+          <div class="driver-area"><span class="steering"></span><span>Conductor</span></div>
+          <div class="seat-map" id="occ-seat-map"></div>
+        </div>
+      </div>
+
+      <p class="muted" id="occ-status" style="margin-top: 14px; text-align: center;"></p>
     </div>
   </div>
 
@@ -1650,7 +2170,7 @@
             </div>
           </div>
           <div class="bus-body">
-            <div class="driver-area"><span>Conductor</span><span class="steering"></span></div>
+            <div class="driver-area"><span class="steering"></span><span>Conductor</span></div>
             <div class="seat-map" id="seat-map"></div>
           </div>
         </section>
@@ -1679,8 +2199,17 @@
           </div>
 
           <div class="field">
-            <label for="reserve-date">Fecha de reserva</label>
-            <input id="reserve-date" type="date" />
+            <label>Horario de salida</label>
+            <div class="horario-picker">
+              <button type="button" class="horario-btn active" data-horario="manana" id="horario-manana">
+                <span class="horario-tag">Mañana</span>
+                <span class="horario-time" id="horario-manana-time">—</span>
+              </button>
+              <button type="button" class="horario-btn" data-horario="tarde" id="horario-tarde">
+                <span class="horario-tag">Tarde / Noche</span>
+                <span class="horario-time" id="horario-tarde-time">—</span>
+              </button>
+            </div>
           </div>
 
           <div class="field">
@@ -1869,7 +2398,24 @@
       `;
     }
 
+    function updateCtaBand() {
+      const title = document.getElementById("cta-title");
+      const text = document.getElementById("cta-text");
+      const btn = document.getElementById("cta-btn");
+      if (!btn) return;
+      if (isLoggedIn()) {
+        title.textContent = "¿A dónde vas hoy?";
+        text.textContent = "Explora las rutas disponibles y reserva tu cupo en segundos.";
+        btn.textContent = "Ver rutas";
+      } else {
+        title.textContent = "¿Listo para viajar?";
+        text.textContent = "Crea tu cuenta y reserva tu cupo en segundos. Asiento garantizado y factura al correo.";
+        btn.textContent = "Crear cuenta";
+      }
+    }
+
     function renderHeroSide() {
+      updateCtaBand();
       const heroTitle = document.getElementById("hero-title");
       const heroSubtitle = document.getElementById("hero-subtitle");
 
@@ -1926,27 +2472,60 @@
       return "var(--accent)";
     }
 
-    function filterAndRenderRoutes() {
-      const query = (document.getElementById("route-filter")?.value || "").toLowerCase().trim();
-      if (!query) {
-        renderRoutes(state.rutas);
-        return;
-      }
-      const filtered = state.rutas.filter(r =>
-        r.origen.toLowerCase().includes(query) || r.destino.toLowerCase().includes(query)
-      );
-      const container = document.getElementById("rutas-container");
-      if (!filtered.length) {
-        container.innerHTML = `<div class="search-empty">No hay rutas que coincidan con "<strong>${query}</strong>".</div>`;
-        return;
-      }
-      renderRoutes(filtered);
+    function populateCityLists() {
+      const origenes = [...new Set(state.rutas.map(r => r.origen))].sort();
+      const destinos = [...new Set(state.rutas.map(r => r.destino))].sort();
+      const dlO = document.getElementById("cities-origen");
+      const dlD = document.getElementById("cities-destino");
+      if (dlO) dlO.innerHTML = origenes.map(c => `<option value="${c}">`).join("");
+      if (dlD) dlD.innerHTML = destinos.map(c => `<option value="${c}">`).join("");
     }
 
-    function renderRoutes(rutas) {
-      const container = document.getElementById("rutas-container");
+    function tripSearch() {
+      const origen = document.getElementById("search-origen").value.trim();
+      const destino = document.getElementById("search-destino").value.trim();
+      const fecha = document.getElementById("search-fecha").value;
+      state.searchDate = fecha || null;
+
+      const filtered = state.rutas.filter(r => {
+        const okO = !origen || r.origen.toLowerCase().includes(origen.toLowerCase());
+        const okD = !destino || r.destino.toLowerCase().includes(destino.toLowerCase());
+        const okF = !fecha || (r.fecha || "") === fecha;
+        return okO && okD && okF;
+      });
+
+      // Cambia a la vista de resultados
+      activateView("resultados");
+
+      const partes = [];
+      if (origen) partes.push(`desde ${origen}`);
+      if (destino) partes.push(`hacia ${destino}`);
+      if (fecha) partes.push(`el ${fecha}`);
+      const resumen = partes.length ? partes.join(" ") : "todos los viajes";
+      document.getElementById("resultados-info").textContent =
+        `${filtered.length} viaje${filtered.length !== 1 ? "s" : ""} ${resumen}.`;
+
+      const container = document.getElementById("resultados-container");
+      if (!filtered.length) {
+        container.innerHTML = `<div class="search-empty">No hay viajes ${resumen}. Prueba otra combinación.</div>`;
+      } else {
+        renderRoutes(filtered, "resultados-container");
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function renderFeatured() {
+      // Próximos viajes: ordena por fecha ascendente y muestra los primeros 6
+      const proximos = [...state.rutas]
+        .sort((a, b) => (a.fecha || "9999").localeCompare(b.fecha || "9999"))
+        .slice(0, 6);
+      renderRoutes(proximos, "rutas-container", "Aun no hay viajes publicados.");
+    }
+
+    function renderRoutes(rutas, containerId = "rutas-container", emptyMsg = "No hay viajes para mostrar.") {
+      const container = document.getElementById(containerId);
       if (!rutas.length) {
-        container.innerHTML = '<div class="empty">No hay rutas registradas aun.</div>';
+        container.innerHTML = `<div class="empty">${emptyMsg}</div>`;
         return;
       }
 
@@ -1970,6 +2549,12 @@
             <span class="price-badge">${formatMoney(ruta.precio ?? RESERVATION_PRICE)}</span>
             <span class="status-pill ${status.cls}">${status.text}</span>
             <span class="small-pill">Cap. ${ruta.capacidad}</span>
+          </div>
+
+          <div class="route-schedules">
+            <span>📅 <strong>${ruta.fecha || "sin fecha"}</strong></span>
+            <span>🌅 ${ruta.salida_manana || "--:--"} → ${ruta.llegada_manana ? ruta.llegada_manana.hora : "--:--"}${ruta.llegada_manana && ruta.llegada_manana.dia_siguiente ? " (+1)" : ""}</span>
+            <span>🌙 ${ruta.salida_tarde || "--:--"} → ${ruta.llegada_tarde ? ruta.llegada_tarde.hora : "--:--"}${ruta.llegada_tarde && ruta.llegada_tarde.dia_siguiente ? " (+1)" : ""}</span>
           </div>
 
           <div class="route-actions">
@@ -2040,33 +2625,69 @@
         row.innerHTML = `
           <div class="row-main">
             <strong>${formatRouteName(ruta)}</strong>
-            <span>Cap. ${ruta.capacidad} | ${ruta.reservas_actuales} reservas | ${ruta.asientos_disponibles} libres</span>
+            <span>Viaje ${ruta.fecha || "sin fecha"} | Cap. ${ruta.capacidad} | ${ruta.reservas_actuales} reservas | ${ruta.asientos_disponibles} libres</span>
             <small>Precio: ${formatMoney(ruta.precio ?? RESERVATION_PRICE)} por ticket | ID ${ruta.id}</small>
           </div>
           <div class="panel-actions">
-            <span class="small-pill">${ruta.ocupacion_porcentaje}% ocupado</span>
+            <button class="ghost-btn route-occupancy-btn">Ver ocupacion</button>
             <button class="danger-btn route-delete-btn">Eliminar ruta</button>
           </div>
         `;
         row.querySelector(".route-delete-btn").addEventListener("click", () => deleteRoute(ruta.id, formatRouteName(ruta)));
+        row.querySelector(".route-occupancy-btn").addEventListener("click", () => openOccupancyModal(ruta));
         container.appendChild(row);
       });
     }
 
     function renderAdminReservations(reservas) {
+      // Solo reservas activas (no canceladas)
+      state.adminReservas = (reservas || []).filter((r) => (r.estado_pago || "") !== "cancelada");
+
+      // Poblar el select de rutas con las rutas presentes
+      const select = document.getElementById("resv-filter-route");
+      const rutas = new Map();
+      state.adminReservas.forEach((r) => rutas.set(r.ruta_id, formatRouteName(r)));
+      const prev = select.value;
+      select.innerHTML = '<option value="">Todas las rutas</option>' +
+        Array.from(rutas.entries()).map(([id, name]) => `<option value="${id}">${name}</option>`).join("");
+      select.value = prev;
+
+      applyReservationFilters();
+    }
+
+    function applyReservationFilters() {
       const container = document.getElementById("admin-reservas-container");
-      if (!reservas.length) {
-        container.innerHTML = '<div class="empty">No hay reservas activas para mostrar.</div>';
+      const summary = document.getElementById("resv-summary");
+      const fecha = document.getElementById("resv-filter-date").value;
+      const rutaId = document.getElementById("resv-filter-route").value;
+
+      const base = (state.adminReservas || []).filter((r) => {
+        if (fecha && (r.fecha_reserva || "") !== fecha) return false;
+        if (rutaId && r.ruta_id !== rutaId) return false;
+        return true;
+      });
+
+      // Recaudado = todo lo pagado (activas + completadas). Lista = solo activas.
+      const recaudado = base.reduce((sum, r) => sum + Number(r.precio ?? RESERVATION_PRICE), 0);
+      const activas = base.filter((r) => (r.estado_pago || "") === "pagado");
+
+      summary.innerHTML = `
+        <div class="resv-stat"><strong>${activas.length}</strong><span>Reservas activas</span></div>
+        <div class="resv-stat"><strong>${formatMoney(recaudado)}</strong><span>Recaudado en pasajes</span></div>
+      `;
+
+      if (!activas.length) {
+        container.innerHTML = '<div class="empty">No hay reservas activas que coincidan con el filtro.</div>';
         return;
       }
 
-      container.innerHTML = reservas.map((reserva) => `
+      container.innerHTML = activas.map((reserva) => `
         <div class="table-row">
           <div class="row-main">
             <strong>${reserva.nombre_pasajero}</strong>
-            <span>${formatRouteName(reserva)}</span>
+            <span>${formatRouteName(reserva)} | ${formatMoney(reserva.precio ?? RESERVATION_PRICE)}</span>
             <small>
-              Asiento: ${reserva.asiento || "sin asignar"} | Fecha: ${reserva.fecha_reserva || "sin fecha"} | Tel: ${reserva.telefono || "sin telefono"}
+              Asiento: ${reserva.asiento || "sin asignar"} | Fecha: ${reserva.fecha_reserva || "sin fecha"} | ${reserva.horario === "tarde" ? "Tarde/Noche" : "Mañana"} | Tel: ${reserva.telefono || "sin telefono"}
             </small>
             <small>Pago: ${reserva.estado_pago || "pendiente"} por ${reserva.metodo_pago || "sin metodo"} | Usuario: ${reserva.usuario_reserva || "sin cuenta"} | ID ${reserva.id}</small>
           </div>
@@ -2077,23 +2698,147 @@
       `).join("");
     }
 
+    async function loadRefunds() {
+      const container = document.getElementById("admin-reembolsos-container");
+      try {
+        const response = await apiFetch("/admin/reembolsos", {}, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        renderRefunds(data);
+      } catch (error) {
+        container.innerHTML = `<div class="empty">No se pudieron cargar los reembolsos.<br><small>${error.message}</small></div>`;
+      }
+    }
+
+    function renderRefunds(reembolsos) {
+      const container = document.getElementById("admin-reembolsos-container");
+      if (!reembolsos.length) {
+        container.innerHTML = '<div class="empty">Sin reembolsos pendientes.</div>';
+        return;
+      }
+      const total = reembolsos.reduce((s, r) => s + Number(r.monto_reembolso || 0), 0);
+      container.innerHTML = `
+        <div class="resv-summary">
+          <div class="resv-stat"><strong>${reembolsos.length}</strong><span>Reembolsos pendientes</span></div>
+          <div class="resv-stat"><strong>${formatMoney(total)}</strong><span>Total por devolver</span></div>
+        </div>
+      ` + reembolsos.map((r) => `
+        <div class="table-row">
+          <div class="row-main">
+            <strong>${r.nombre_pasajero} — ${formatMoney(r.monto_reembolso)}</strong>
+            <span>${formatRouteName(r)} | Fecha ${r.fecha_reserva || "sin fecha"}</span>
+            <small>Tel: ${r.telefono || "sin telefono"} | Correo: ${r.email_usuario || "sin correo"} | Pago original: ${r.metodo_pago || "sin metodo"}</small>
+          </div>
+          <div class="panel-actions">
+            <button class="ghost-btn refund-done" data-id="${r.id}">Marcar devuelto</button>
+          </div>
+        </div>
+      `).join("");
+
+      container.querySelectorAll(".refund-done").forEach((btn) => {
+        btn.addEventListener("click", () => markRefundDone(btn.dataset.id));
+      });
+    }
+
+    async function markRefundDone(reservaId) {
+      if (!confirm("¿Confirmas que ya devolviste este dinero al pasajero?")) return;
+      try {
+        const response = await apiFetch(`/admin/reembolsos/${reservaId}/procesar`, {
+          method: "POST", headers: authHeaders(),
+        }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        toast("Reembolso marcado como devuelto.");
+        loadRefunds();
+      } catch (error) {
+        toast(error.message || "No se pudo marcar el reembolso.", "error");
+      }
+    }
+
     function renderMyReservations(reservas) {
       const container = document.getElementById("my-reservations-container");
       if (!reservas.length) {
         container.innerHTML = '<div class="empty">Aun no tienes reservas activas.</div>';
         return;
       }
+      state.myReservas = reservas;
 
-      container.innerHTML = reservas.map((reserva) => `
+      const today = new Date().toISOString().slice(0, 10);
+      container.innerHTML = reservas.map((reserva) => {
+        const cancelada = (reserva.estado_pago || "") === "cancelada";
+        const futura = (reserva.fecha_reserva || "") > today;
+        const cancelable = !cancelada && futura;
+        const estadoBadge = cancelada
+          ? '<span class="status-pill off">Cancelada</span>'
+          : '<span class="status-pill ok">Activa</span>';
+        const cancelBtn = cancelable
+          ? `<button class="danger-btn cancel-trigger" data-id="${reserva.id}">Cancelar</button>`
+          : "";
+        let refundLine = "";
+        if (cancelada) {
+          const estado = reserva.estado_reembolso || "no_aplica";
+          const monto = Number(reserva.monto_reembolso || 0);
+          if (estado === "pendiente") refundLine = `<small>Reembolso: ${formatMoney(monto)} en proceso</small>`;
+          else if (estado === "reembolsado") refundLine = `<small>Reembolso: ${formatMoney(monto)} ya devuelto</small>`;
+          else refundLine = `<small>Sin reembolso segun la politica</small>`;
+        }
+        return `
         <div class="table-row">
           <div class="row-main">
             <strong>${formatRouteName(reserva)}</strong>
-            <span>Asiento ${reserva.asiento || "sin asignar"} | Fecha ${reserva.fecha_reserva || "sin fecha"}</span>
+            <span>Asiento ${reserva.asiento || "sin asignar"} | Fecha ${reserva.fecha_reserva || "sin fecha"} | ${reserva.horario === "tarde" ? "Tarde/Noche" : "Mañana"}</span>
             <small>Pasajero: ${reserva.nombre_pasajero} | Tel: ${reserva.telefono || "sin telefono"}</small>
             <small>Pago: ${reserva.estado_pago || "pendiente"} por ${reserva.metodo_pago || "sin metodo"} | ID ${reserva.id}</small>
+            ${refundLine}
+          </div>
+          <div class="panel-actions">
+            ${estadoBadge}
+            ${cancelBtn}
           </div>
         </div>
-      `).join("");
+        `;
+      }).join("");
+
+      container.querySelectorAll(".cancel-trigger").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const reserva = (state.myReservas || []).find((r) => r.id === btn.dataset.id);
+          cancelReservation(btn.dataset.id, reserva);
+        });
+      });
+    }
+
+    function refundPreview(reserva) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const fecha = new Date((reserva.fecha_reserva || "") + "T00:00:00");
+      const dias = Math.round((fecha - today) / 86400000);
+      const precio = Number(reserva.precio ?? RESERVATION_PRICE);
+      let pct = 0;
+      if (dias >= 2) pct = 100; else if (dias === 1) pct = 50;
+      return { pct, monto: Math.round(precio * pct / 100) };
+    }
+
+    async function cancelReservation(reservaId, reserva) {
+      const prev = reserva ? refundPreview(reserva) : null;
+      const msg = prev && prev.monto > 0
+        ? `Vas a cancelar esta reserva.\n\nSegun la politica, se te devolvera ${formatMoney(prev.monto)} (${prev.pct}%).\nEl asiento quedara libre. ¿Continuar?`
+        : "Vas a cancelar esta reserva. Por la fecha, no aplica reembolso. El asiento quedara libre. ¿Continuar?";
+      if (!confirm(msg)) return;
+      try {
+        const response = await apiFetch(`/reservas/${reservaId}/cancelar`, {
+          method: "POST", headers: authHeaders(),
+        }, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        if (data.monto_reembolso > 0) {
+          toast(`Reserva cancelada. Reembolso de ${formatMoney(data.monto_reembolso)} en proceso.`);
+        } else {
+          toast("Reserva cancelada. Sin reembolso segun la politica.");
+        }
+        await loadMyReservations();
+        if (typeof loadRutas === "function") loadRutas();
+      } catch (error) {
+        toast(error.message || "No se pudo cancelar la reserva.", "error");
+      }
     }
 
     function renderEvents(items) {
@@ -2125,6 +2870,7 @@
       });
       document.getElementById("auth-full-name-field").style.display = registerMode ? "grid" : "none";
       document.getElementById("auth-email-field").style.display = registerMode ? "grid" : "none";
+      document.getElementById("auth-terms-field").style.display = registerMode ? "flex" : "none";
       document.getElementById("auth-submit-btn").textContent = registerMode ? "Crear cuenta" : "Entrar";
     }
 
@@ -2151,8 +2897,7 @@
       document.getElementById("trip-origin").textContent = state.activeRoute.origen;
       document.getElementById("trip-dest").textContent = state.activeRoute.destino;
       document.getElementById("trip-price").textContent = formatMoney(state.activeRoute.precio ?? RESERVATION_PRICE);
-      const fecha = document.getElementById("reserve-date").value;
-      document.getElementById("trip-date").textContent = fecha || "—";
+      document.getElementById("trip-date").textContent = state.activeRoute.fecha || "—";
     }
 
     function clearFieldError(inputEl) {
@@ -2248,11 +2993,61 @@
       updatePaymentSummary();
     }
 
+    function openOccupancyModal(ruta) {
+      state.occupancyRoute = ruta;
+      document.getElementById("occ-title").textContent = formatRouteName(ruta);
+      document.getElementById("occ-route-info").textContent = `Viaje del ${ruta.fecha || "sin fecha"} · Capacidad ${ruta.capacidad}`;
+      document.getElementById("occ-status").textContent = "";
+      openModal("occupancy-modal");
+      loadOccupancy();
+    }
+
+    async function loadOccupancy() {
+      const ruta = state.occupancyRoute;
+      if (!ruta) return;
+      const fecha = ruta.fecha;
+      const horario = document.getElementById("occ-horario").value;
+      const container = document.getElementById("occ-seat-map");
+      container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted)"><div class="spinner" style="margin:0 auto 10px"></div>Cargando...</div>';
+      try {
+        const response = await apiFetch(`/rutas/${ruta.id}/disponibilidad?fecha=${fecha}&horario=${horario}`, {}, true);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
+        renderOccupancySeats(ruta, new Set(data.asientos_ocupados || []));
+        const libres = data.asientos_disponibles;
+        const ocupados = Number(ruta.capacidad) - libres;
+        document.getElementById("occ-status").textContent =
+          `${ocupados} ocupados · ${libres} libres el ${fecha}`;
+      } catch (error) {
+        container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:18px;color:var(--danger)">No se pudo cargar la ocupacion.</div>`;
+      }
+    }
+
+    function renderOccupancySeats(ruta, occupied) {
+      const container = document.getElementById("occ-seat-map");
+      const total = Number(ruta.capacidad || 0);
+      container.innerHTML = "";
+      for (let index = 0; index < total; index++) {
+        if (index > 0 && index % 4 === 2) {
+          const aisle = document.createElement("div");
+          aisle.className = "aisle";
+          container.appendChild(aisle);
+        }
+        const label = seatLabel(index);
+        const cell = document.createElement("div");
+        const taken = occupied.has(label);
+        cell.className = `occ-seat ${taken ? "taken" : "free"}`;
+        cell.textContent = label;
+        container.appendChild(cell);
+      }
+    }
+
     async function loadSeatAvailability(rutaId, fecha) {
       const seatMap = document.getElementById("seat-map");
+      const horario = state.selectedHorario || "manana";
       seatMap.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted)"><div class="spinner" style="margin:0 auto 10px"></div>Cargando disponibilidad...</div>';
       try {
-        const response = await apiFetch(`/rutas/${rutaId}/disponibilidad?fecha=${fecha}`, {}, true);
+        const response = await apiFetch(`/rutas/${rutaId}/disponibilidad?fecha=${fecha}&horario=${horario}`, {}, true);
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
         state.selectedSeat = "";
@@ -2267,14 +3062,38 @@
       }
     }
 
+    function fmtArrival(llegada) {
+      if (!llegada) return "";
+      return llegada.hora + (llegada.dia_siguiente ? " (+1)" : "");
+    }
+
+    function setHorarioTimes(ruta) {
+      const m = document.getElementById("horario-manana-time");
+      const t = document.getElementById("horario-tarde-time");
+      if (m) m.textContent = `${ruta.salida_manana || "--:--"} → ${fmtArrival(ruta.llegada_manana)}`;
+      if (t) t.textContent = `${ruta.salida_tarde || "--:--"} → ${fmtArrival(ruta.llegada_tarde)}`;
+    }
+
+    function selectHorario(horario) {
+      state.selectedHorario = horario;
+      document.getElementById("horario-manana").classList.toggle("active", horario === "manana");
+      document.getElementById("horario-tarde").classList.toggle("active", horario === "tarde");
+      if (state.activeRoute) {
+        loadSeatAvailability(state.activeRoute.id, state.activeRoute.fecha);
+      }
+    }
+
     function openReserveModal(ruta) {
       document.getElementById("reserve-route-id").value = ruta.id;
       document.getElementById("reserve-passenger-name").value = state.user?.full_name || "";
       document.getElementById("reserve-phone").value = "";
       document.getElementById("reserve-payment-method").value = "";
-      document.getElementById("reserve-date").valueAsDate = new Date();
       state.activeRoute = ruta;
       state.selectedSeat = "";
+      state.selectedHorario = "manana";
+      setHorarioTimes(ruta);
+      document.getElementById("horario-manana").classList.add("active");
+      document.getElementById("horario-tarde").classList.remove("active");
 
       ["reserve-passenger-name", "reserve-phone", "reserve-payment-method"].forEach((id) => {
         const el = document.getElementById(id);
@@ -2288,19 +3107,31 @@
 
       openModal("reserve-modal");
       updateTripSummary();
-      const fecha = document.getElementById("reserve-date").value;
-      loadSeatAvailability(ruta.id, fecha);
+      loadSeatAvailability(ruta.id, ruta.fecha);
+    }
+
+    function renderRouteSkeletons(n = 6) {
+      const container = document.getElementById("rutas-container");
+      container.innerHTML = Array.from({ length: n }).map(() => `
+        <div class="skeleton-card">
+          <div class="sk sk-title"></div>
+          <div class="sk sk-row"></div>
+          <div class="sk sk-row short"></div>
+          <div class="sk sk-actions"></div>
+        </div>
+      `).join("");
     }
 
     async function loadRutas() {
       const container = document.getElementById("rutas-container");
-      container.innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando rutas...</div></div>';
+      renderRouteSkeletons();
       try {
         const response = await apiFetch("/rutas");
         if (!response.ok) throw new Error(`Error ${response.status}`);
         state.rutas = await response.json();
         renderHeroStats();
-        filterAndRenderRoutes();
+        populateCityLists();
+        renderFeatured();
       } catch (error) {
         container.innerHTML = `<div class="empty">No se pudieron cargar las rutas.<br><small>${error.message}</small></div>`;
       }
@@ -2311,32 +3142,27 @@
 
       document.getElementById("admin-rutas-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando panel...</div></div>';
       document.getElementById("admin-reservas-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando reservas...</div></div>';
-      document.getElementById("admin-eventos-container").innerHTML = '<div class="loading"><div><div class="spinner"></div>Cargando eventos...</div></div>';
 
       try {
-        const [dashboardRes, infraRes, eventsRes] = await Promise.all([
+        const [dashboardRes, infraRes] = await Promise.all([
           apiFetch("/admin/dashboard", {}, true),
           apiFetch("/infra/status", {}, true),
-          apiFetch("/admin/eventos", {}, true),
         ]);
 
         if (!dashboardRes.ok) throw new Error(`Dashboard ${dashboardRes.status}`);
         if (!infraRes.ok) throw new Error(`Infra ${infraRes.status}`);
-        if (!eventsRes.ok) throw new Error(`Eventos ${eventsRes.status}`);
 
         state.dashboard = await dashboardRes.json();
         state.infra = await infraRes.json();
-        const events = await eventsRes.json();
 
         renderMetrics(state.dashboard.metricas);
         renderInfraStatus(state.infra);
         renderAdminRoutes(state.dashboard.rutas);
         renderAdminReservations(state.dashboard.reservas);
-        renderEvents(events.items || []);
+        loadRefunds();
       } catch (error) {
         document.getElementById("admin-rutas-container").innerHTML = `<div class="empty">No se pudo cargar el panel.<br><small>${error.message}</small></div>`;
         document.getElementById("admin-reservas-container").innerHTML = '<div class="empty">Sin datos de reservas.</div>';
-        document.getElementById("admin-eventos-container").innerHTML = '<div class="empty">Sin eventos disponibles.</div>';
       }
     }
 
@@ -2363,6 +3189,7 @@
       const fullName = document.getElementById("auth-full-name").value.trim();
       const email = document.getElementById("auth-email").value.trim();
       const password = document.getElementById("auth-password").value.trim();
+      const aceptoTerminos = document.getElementById("auth-terms").checked;
 
       if (!username || !password || (state.authMode === "register" && (!fullName || !email))) {
         toast("Completa los campos requeridos.", "error");
@@ -2374,11 +3201,16 @@
         return;
       }
 
+      if (state.authMode === "register" && !aceptoTerminos) {
+        toast("Debes aceptar los terminos y la politica de datos.", "error");
+        return;
+      }
+
       setButtonLoading("auth-submit-btn", state.authMode === "register" ? "Creando..." : "Entrando...", true);
       try {
         const path = state.authMode === "register" ? "/auth/register" : "/auth/login";
         const payload = state.authMode === "register"
-          ? { username, full_name: fullName, email, password }
+          ? { username, full_name: fullName, email, password, acepto_terminos: aceptoTerminos }
           : { username, password };
         const response = await apiFetch(path, {
           method: "POST",
@@ -2394,6 +3226,7 @@
         document.getElementById("auth-full-name").value = "";
         document.getElementById("auth-email").value = "";
         document.getElementById("auth-password").value = "";
+        document.getElementById("auth-terms").checked = false;
         toast(state.authMode === "register" ? "Cuenta creada y sesion iniciada." : "Sesion iniciada correctamente.");
         if (isAdmin()) {
           activateView("admin");
@@ -2440,6 +3273,9 @@
       const destino = document.getElementById("admin-ruta-destino").value.trim();
       const capacidad = Number.parseInt(document.getElementById("admin-ruta-capacidad").value, 10);
       const precio = Number.parseInt(document.getElementById("admin-ruta-precio").value, 10);
+      const fecha = document.getElementById("admin-ruta-fecha").value;
+      const salida_manana = document.getElementById("admin-ruta-salida-manana").value;
+      const salida_tarde = document.getElementById("admin-ruta-salida-tarde").value;
 
       if (!origen || !destino || !capacidad || capacidad < 1) {
         toast("Completa origen, destino y capacidad validos.", "error");
@@ -2449,13 +3285,33 @@
         toast("Ingresa un precio valido para el ticket.", "error");
         return;
       }
+      if (!fecha) {
+        toast("Selecciona la fecha del viaje.", "error");
+        return;
+      }
+      if (!salida_manana || !salida_tarde) {
+        toast("Define las horas de salida de manana y tarde.", "error");
+        return;
+      }
+
+      setButtonLoading("btn-admin-ruta", "Calculando ruta...", true);
+
+      // Duracion estimada automatica (mismo OSRM del mapa). Si falla, 8h por defecto.
+      let duracion_min = 480;
+      try {
+        const [o, d] = await Promise.all([geocodeCity(origen), geocodeCity(destino)]);
+        const route = await fetchOSRMRoute(o, d);
+        duracion_min = Math.max(Math.round(route.duration / 60), 1);
+      } catch (e) {
+        toast("No se pudo calcular la duracion automatica, se uso 8h por defecto.", "error");
+      }
 
       setButtonLoading("btn-admin-ruta", "Creando ruta...", true);
       try {
         const response = await apiFetch("/rutas", {
           method: "POST",
           headers: { ...authHeaders({ "Content-Type": "application/json" }) },
-          body: JSON.stringify({ origen, destino, capacidad, precio }),
+          body: JSON.stringify({ origen, destino, capacidad, precio, fecha, salida_manana, salida_tarde, duracion_min }),
         }, true);
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `Error ${response.status}`);
@@ -2465,6 +3321,7 @@
         document.getElementById("admin-ruta-destino").value = "";
         document.getElementById("admin-ruta-capacidad").value = "";
         document.getElementById("admin-ruta-precio").value = "";
+        document.getElementById("admin-ruta-fecha").value = "";
         await Promise.all([loadRutas(), loadAdminPanel()]);
       } catch (error) {
         toast(error.message, "error");
@@ -2477,7 +3334,7 @@
       const rutaId = document.getElementById("reserve-route-id").value;
       const passengerName = document.getElementById("reserve-passenger-name").value.trim();
       const phone = document.getElementById("reserve-phone").value.trim();
-      const bookingDate = document.getElementById("reserve-date").value;
+      const bookingDate = state.activeRoute?.fecha || "";
       const paymentMethod = document.getElementById("reserve-payment-method").value;
 
       if (!validateReserveForm(passengerName, phone, paymentMethod)) return;
@@ -2491,9 +3348,9 @@
             ruta_id: rutaId,
             nombre_pasajero: passengerName,
             telefono: phone,
-            fecha_reserva: bookingDate,
             asiento: state.selectedSeat,
             metodo_pago: paymentMethod,
+            horario: state.selectedHorario || "manana",
           }),
         }, true);
         const data = await response.json();
@@ -2743,23 +3600,56 @@
       document.getElementById("logout-btn").addEventListener("click", logout);
       document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
       document.getElementById("close-reserve-modal").addEventListener("click", () => closeModal("reserve-modal"));
+      document.getElementById("open-terms-link").addEventListener("click", (e) => { e.preventDefault(); openModal("terms-modal"); });
+      document.getElementById("close-terms-modal").addEventListener("click", () => closeModal("terms-modal"));
+      document.getElementById("terms-accept-btn").addEventListener("click", () => {
+        document.getElementById("auth-terms").checked = true;
+        closeModal("terms-modal");
+      });
+      document.getElementById("close-occupancy-modal").addEventListener("click", () => closeModal("occupancy-modal"));
+      document.getElementById("occ-horario").addEventListener("change", loadOccupancy);
+
+      document.getElementById("btn-trip-search").addEventListener("click", tripSearch);
+      ["search-origen", "search-destino"].forEach((id) => {
+        document.getElementById(id).addEventListener("keydown", (e) => {
+          if (e.key === "Enter") tripSearch();
+        });
+      });
+
+      document.getElementById("cta-btn").addEventListener("click", () => {
+        if (isLoggedIn()) {
+          activateView("rutas");
+          document.getElementById("rutas-container").scrollIntoView({ behavior: "smooth" });
+        } else {
+          state.authMode = "register";
+          syncAuthModal();
+          openModal("auth-modal");
+        }
+      });
+      document.getElementById("footer-terms").addEventListener("click", (e) => { e.preventDefault(); openModal("terms-modal"); });
+      document.querySelectorAll("[data-foot-view]").forEach((link) => {
+        link.addEventListener("click", (e) => { e.preventDefault(); activateView(link.dataset.footView); });
+      });
+      document.getElementById("resv-filter-date").addEventListener("change", applyReservationFilters);
+      document.getElementById("resv-filter-route").addEventListener("change", applyReservationFilters);
+      document.getElementById("resv-filter-clear").addEventListener("click", () => {
+        document.getElementById("resv-filter-date").value = "";
+        document.getElementById("resv-filter-route").value = "";
+        applyReservationFilters();
+      });
       document.getElementById("close-map-modal").addEventListener("click", () => {
         closeModal("map-modal");
         if (leafletMap) { leafletMap.remove(); leafletMap = null; }
       });
       document.getElementById("refresh-routes-btn").addEventListener("click", loadRutas);
-      document.getElementById("route-filter").addEventListener("input", filterAndRenderRoutes);
+      document.getElementById("back-to-home-btn").addEventListener("click", () => activateView("rutas"));
       document.getElementById("refresh-my-reservations-btn").addEventListener("click", loadMyReservations);
       document.getElementById("refresh-admin-btn").addEventListener("click", loadAdminPanel);
       document.getElementById("btn-admin-ruta").addEventListener("click", createRouteFromAdmin);
       document.getElementById("auth-submit-btn").addEventListener("click", submitAuth);
       document.getElementById("reserve-submit-btn").addEventListener("click", createReservation);
-      document.getElementById("reserve-date").addEventListener("change", () => {
-        if (state.activeRoute) {
-          updateTripSummary();
-          loadSeatAvailability(state.activeRoute.id, document.getElementById("reserve-date").value);
-        }
-      });
+      document.getElementById("horario-manana").addEventListener("click", () => selectHorario("manana"));
+      document.getElementById("horario-tarde").addEventListener("click", () => selectHorario("tarde"));
 
       document.querySelectorAll(".auth-tab").forEach((button) => {
         button.addEventListener("click", () => {
@@ -2784,16 +3674,45 @@
     }
 
     window.deleteReservation = deleteReservation;
-    init();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
   </script>
 
   <footer>
-    <div class="footer-inner">
-      <div class="footer-brand">
-        <div class="footer-brand-mark">RY</div>
-        ReservaYa Control
+    <div class="footer-top">
+      <div class="footer-col footer-about">
+        <div class="footer-brand">
+          <div class="footer-brand-mark">RY</div>
+          ReservaYa
+        </div>
+        <p>Reserva tu cupo de bus intermunicipal, paga seguro y viaja con tu asiento garantizado.</p>
+        <span class="footer-trust">Pago seguro · Datos protegidos (Ley 1581)</span>
       </div>
-      <span class="footer-copy">© 2026 — Sistema de reservas de transporte</span>
+
+      <div class="footer-col">
+        <h4>Navegación</h4>
+        <a href="#" data-foot-view="rutas">Rutas</a>
+        <a href="#" data-foot-view="mis-reservas">Mis reservas</a>
+        <a href="#faq-anchor">Preguntas frecuentes</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#" id="footer-terms">Términos y política de datos</a>
+      </div>
+
+      <div class="footer-col">
+        <h4>Soporte</h4>
+        <a href="mailto:nicolasgarciaestrada2004@gmail.com">nicolasgarciaestrada2004@gmail.com</a>
+        <a href="#" data-foot-view="rutas">¿Necesitas ayuda?</a>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2026 ReservaYa — Sistema de reservas de transporte</span>
     </div>
   </footer>
 </body>

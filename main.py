@@ -36,6 +36,10 @@ class Ruta(BaseModel):
     destino: str
     capacidad: int = Field(..., ge=1)
     precio: int = Field(..., ge=0)
+    fecha: date
+    salida_manana: str = Field(default="06:00")
+    salida_tarde: str = Field(default="18:00")
+    duracion_min: int = Field(default=480, ge=1)
 
 
 class RutaUpdate(BaseModel):
@@ -43,15 +47,19 @@ class RutaUpdate(BaseModel):
     destino: Optional[str] = None
     capacidad: Optional[int] = Field(default=None, ge=1)
     precio: Optional[int] = Field(default=None, ge=0)
+    fecha: Optional[date] = None
+    salida_manana: Optional[str] = None
+    salida_tarde: Optional[str] = None
+    duracion_min: Optional[int] = Field(default=None, ge=1)
 
 
 class Reserva(BaseModel):
     nombre_pasajero: Optional[str] = None
     ruta_id: str
     telefono: str
-    fecha_reserva: date
     asiento: str
     metodo_pago: str
+    horario: str = Field(default="manana")
 
 
 class ReservaUpdate(BaseModel):
@@ -64,6 +72,7 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=100)
     email: str = Field(..., min_length=5, max_length=120)
     password: str = Field(..., min_length=4, max_length=120)
+    acepto_terminos: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -222,6 +231,37 @@ def is_valid_email(value: str) -> bool:
     return bool(EMAIL_REGEX.match(value))
 
 
+TIME_REGEX = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
+
+def is_valid_time(value: str) -> bool:
+    return bool(TIME_REGEX.match(value or ""))
+
+
+def compute_arrival(salida: str, duracion_min: int) -> dict:
+    """Calcula la hora de llegada a partir de la salida HH:MM + duracion en minutos."""
+    if not is_valid_time(salida):
+        return {"hora": "--:--", "dia_siguiente": False}
+    h, m = (int(x) for x in salida.split(":"))
+    total = h * 60 + m + int(duracion_min or 0)
+    dia_siguiente = total >= 24 * 60
+    total %= 24 * 60
+    return {"hora": f"{total // 60:02d}:{total % 60:02d}", "dia_siguiente": dia_siguiente}
+
+
+def compute_refund(precio: int, fecha_viaje: date) -> tuple[int, int]:
+    """Politica global de reembolso. Devuelve (porcentaje, monto)."""
+    dias = (fecha_viaje - date.today()).days
+    if dias >= 2:
+        pct = 100
+    elif dias == 1:
+        pct = 50
+    else:
+        pct = 0
+    monto = round(precio * pct / 100)
+    return pct, monto
+
+
 def seat_to_index(seat: str) -> Optional[int]:
     if len(seat) < 2 or not seat[0].isalpha() or not seat[1:].isdigit():
         return None
@@ -284,10 +324,27 @@ async def ensure_user_schema():
         if not email_col:
             await cursor.execute("ALTER TABLE users ADD COLUMN email VARCHAR(120) NULL")
 
+        await cursor.execute("SHOW COLUMNS FROM users LIKE 'acepto_terminos'")
+        terminos_col = await cursor.fetchone()
+        if not terminos_col:
+            await cursor.execute("ALTER TABLE users ADD COLUMN acepto_terminos TINYINT(1) NOT NULL DEFAULT 0")
+            await cursor.execute("ALTER TABLE users ADD COLUMN acepto_terminos_at TIMESTAMP NULL")
+
         await cursor.execute("SHOW COLUMNS FROM rutas LIKE 'precio'")
         precio_col = await cursor.fetchone()
         if not precio_col:
             await cursor.execute("ALTER TABLE rutas ADD COLUMN precio INT NOT NULL DEFAULT 25000")
+
+        ruta_columns = {
+            "fecha": "ALTER TABLE rutas ADD COLUMN fecha DATE NULL",
+            "salida_manana": "ALTER TABLE rutas ADD COLUMN salida_manana VARCHAR(5) NOT NULL DEFAULT '06:00'",
+            "salida_tarde": "ALTER TABLE rutas ADD COLUMN salida_tarde VARCHAR(5) NOT NULL DEFAULT '18:00'",
+            "duracion_min": "ALTER TABLE rutas ADD COLUMN duracion_min INT NOT NULL DEFAULT 480",
+        }
+        for column_name, alter_query in ruta_columns.items():
+            await cursor.execute(f"SHOW COLUMNS FROM rutas LIKE '{column_name}'")
+            if not await cursor.fetchone():
+                await cursor.execute(alter_query)
 
         await cursor.execute("SHOW COLUMNS FROM reservas LIKE 'user_id'")
         user_id_column = await cursor.fetchone()
@@ -300,6 +357,9 @@ async def ensure_user_schema():
             "asiento": "ALTER TABLE reservas ADD COLUMN asiento VARCHAR(8) NULL",
             "metodo_pago": "ALTER TABLE reservas ADD COLUMN metodo_pago VARCHAR(30) NULL",
             "estado_pago": "ALTER TABLE reservas ADD COLUMN estado_pago VARCHAR(20) NOT NULL DEFAULT 'pagado'",
+            "estado_reembolso": "ALTER TABLE reservas ADD COLUMN estado_reembolso VARCHAR(20) NOT NULL DEFAULT 'no_aplica'",
+            "monto_reembolso": "ALTER TABLE reservas ADD COLUMN monto_reembolso INT NOT NULL DEFAULT 0",
+            "horario": "ALTER TABLE reservas ADD COLUMN horario VARCHAR(10) NOT NULL DEFAULT 'manana'",
         }
         for column_name, alter_query in reserva_columns.items():
             await cursor.execute(f"SHOW COLUMNS FROM reservas LIKE '{column_name}'")
@@ -318,6 +378,17 @@ async def ensure_user_schema():
         old_seat_index = await cursor.fetchone()
         if old_seat_index:
             await cursor.execute("DROP INDEX idx_reservas_ruta_asiento ON reservas")
+
+        # Indice unico por horario: crear el nuevo primero (cubre la FK), luego dropear el anterior
+        await cursor.execute("SHOW INDEX FROM reservas WHERE Key_name='idx_reservas_ruta_asiento_fecha_horario'")
+        horario_index = await cursor.fetchone()
+        if not horario_index:
+            await cursor.execute(
+                "CREATE UNIQUE INDEX idx_reservas_ruta_asiento_fecha_horario ON reservas (ruta_id, asiento, fecha_reserva, horario)"
+            )
+        await cursor.execute("SHOW INDEX FROM reservas WHERE Key_name='idx_reservas_ruta_asiento_fecha'")
+        if await cursor.fetchone():
+            await cursor.execute("DROP INDEX idx_reservas_ruta_asiento_fecha ON reservas")
 
         await cursor.execute("SELECT id FROM users WHERE username=%s", (ADMIN_USERNAME,))
         admin_user = await cursor.fetchone()
@@ -495,12 +566,17 @@ async def get_routes_with_stats(conn) -> list[dict]:
                    rutas.destino,
                    rutas.capacidad,
                    rutas.precio,
+                   rutas.fecha,
+                   rutas.salida_manana,
+                   rutas.salida_tarde,
+                   rutas.duracion_min,
                    COUNT(reservas.id) AS reservas_actuales,
                    GROUP_CONCAT(reservas.asiento ORDER BY reservas.asiento SEPARATOR ',') AS asientos_ocupados_raw
             FROM rutas
-            LEFT JOIN reservas ON reservas.ruta_id = rutas.id
-            GROUP BY rutas.id, rutas.origen, rutas.destino, rutas.capacidad, rutas.precio
-            ORDER BY rutas.origen, rutas.destino
+            LEFT JOIN reservas ON reservas.ruta_id = rutas.id AND reservas.estado_pago <> 'cancelada'
+            GROUP BY rutas.id, rutas.origen, rutas.destino, rutas.capacidad, rutas.precio,
+                     rutas.fecha, rutas.salida_manana, rutas.salida_tarde, rutas.duracion_min
+            ORDER BY rutas.fecha, rutas.origen, rutas.destino
             """
         )
         rutas = await cursor.fetchall()
@@ -525,6 +601,10 @@ async def get_routes_with_stats(conn) -> list[dict]:
             candidate_index += 1
         ruta["asientos_ocupados"] = occupied_seats
 
+        dur = int(ruta.get("duracion_min") or 0)
+        ruta["llegada_manana"] = compute_arrival(ruta.get("salida_manana", ""), dur)
+        ruta["llegada_tarde"] = compute_arrival(ruta.get("salida_tarde", ""), dur)
+
     return rutas
 
 
@@ -544,8 +624,12 @@ async def get_reservations(conn, user_id: Optional[str] = None) -> list[dict]:
                    reservas.asiento,
                    reservas.metodo_pago,
                    reservas.estado_pago,
+                   reservas.estado_reembolso,
+                   reservas.monto_reembolso,
+                   reservas.horario,
                    rutas.origen,
                    rutas.destino,
+                   rutas.precio,
                    users.username AS usuario_reserva,
                    users.full_name AS nombre_usuario
             FROM reservas
@@ -561,17 +645,24 @@ async def get_reservations(conn, user_id: Optional[str] = None) -> list[dict]:
         await cursor.close()
 
 
-async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[str] = None, fecha_reserva: Optional[str] = None):
-    await cursor.execute("SELECT capacidad, origen, destino, precio FROM rutas WHERE id=%s FOR UPDATE", (ruta_id,))
+async def get_route_capacity(cursor, ruta_id: str, exclude_reserva_id: Optional[str] = None, fecha_reserva: Optional[str] = None, horario: Optional[str] = None):
+    await cursor.execute("SELECT capacidad, origen, destino, precio, fecha FROM rutas WHERE id=%s FOR UPDATE", (ruta_id,))
     ruta = await cursor.fetchone()
     if not ruta:
         raise HTTPException(status_code=404, detail="Ruta no encontrada")
 
+    # La fecha del viaje la define la ruta (publicada por el admin)
+    if fecha_reserva is None and ruta[4] is not None:
+        fecha_reserva = ruta[4].isoformat() if hasattr(ruta[4], "isoformat") else str(ruta[4])
+
     params = [ruta_id]
-    count_query = "SELECT COUNT(*) AS total FROM reservas WHERE ruta_id=%s"
+    count_query = "SELECT COUNT(*) AS total FROM reservas WHERE ruta_id=%s AND estado_pago <> 'cancelada'"
     if fecha_reserva:
         count_query += " AND fecha_reserva=%s"
         params.append(fecha_reserva)
+    if horario:
+        count_query += " AND horario=%s"
+        params.append(horario)
     if exclude_reserva_id:
         count_query += " AND id <> %s"
         params.append(exclude_reserva_id)
@@ -602,6 +693,9 @@ async def register_user(payload: RegisterRequest, request: Request):
     if not is_valid_email(email):
         raise HTTPException(status_code=400, detail="El correo electronico no es valido")
 
+    if not payload.acepto_terminos:
+        raise HTTPException(status_code=400, detail="Debes aceptar los terminos y la politica de datos")
+
     conn = await get_connection()
     cursor = await conn.cursor(aiomysql.DictCursor)
     user_id = str(uuid.uuid4())
@@ -614,10 +708,10 @@ async def register_user(payload: RegisterRequest, request: Request):
 
         await cursor.execute(
             """
-            INSERT INTO users (id, username, full_name, email, password_hash, role)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO users (id, username, full_name, email, password_hash, role, acepto_terminos, acepto_terminos_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (user_id, username, full_name, email, hash_password(payload.password), "user"),
+            (user_id, username, full_name, email, hash_password(payload.password), "user", 1, datetime.now(timezone.utc)),
         )
         await conn.commit()
     finally:
@@ -708,13 +802,17 @@ async def crear_ruta(ruta: Ruta, request: Request):
     cursor = await conn.cursor()
     ruta_id = str(uuid.uuid4())
 
+    if not is_valid_time(ruta.salida_manana) or not is_valid_time(ruta.salida_tarde):
+        raise HTTPException(status_code=400, detail="Las horas de salida deben tener formato HH:MM")
+
     try:
         await cursor.execute(
             """
-            INSERT INTO rutas (id, origen, destino, capacidad, precio)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO rutas (id, origen, destino, capacidad, precio, fecha, salida_manana, salida_tarde, duracion_min)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            (ruta_id, normalize_text(ruta.origen), normalize_text(ruta.destino), ruta.capacidad, ruta.precio),
+            (ruta_id, normalize_text(ruta.origen), normalize_text(ruta.destino), ruta.capacidad, ruta.precio,
+             ruta.fecha.isoformat(), ruta.salida_manana, ruta.salida_tarde, ruta.duracion_min),
         )
         await conn.commit()
     finally:
@@ -791,7 +889,7 @@ async def actualizar_ruta(ruta_id: str, ruta: RutaUpdate, request: Request):
 
         fields = []
         values = []
-        for key in ("origen", "destino", "capacidad", "precio"):
+        for key in ("origen", "destino", "capacidad", "precio", "fecha", "salida_manana", "salida_tarde", "duracion_min"):
             if key in payload:
                 fields.append(f"{key}=%s")
                 values.append(normalize_text(payload[key]) if isinstance(payload[key], str) else payload[key])
@@ -838,7 +936,7 @@ async def eliminar_ruta(ruta_id: str, request: Request):
 
 
 @app.get("/rutas/{ruta_id}/disponibilidad")
-async def disponibilidad_ruta(ruta_id: str, fecha: str, request: Request):
+async def disponibilidad_ruta(ruta_id: str, fecha: str, request: Request, horario: str = "manana"):
     await require_user(request)
 
     conn = await get_connection()
@@ -850,8 +948,8 @@ async def disponibilidad_ruta(ruta_id: str, fecha: str, request: Request):
             raise HTTPException(status_code=404, detail="Ruta no encontrada")
 
         await cursor.execute(
-            "SELECT asiento FROM reservas WHERE ruta_id=%s AND fecha_reserva=%s",
-            (ruta_id, fecha),
+            "SELECT asiento FROM reservas WHERE ruta_id=%s AND fecha_reserva=%s AND horario=%s AND estado_pago <> 'cancelada' AND asiento IS NOT NULL",
+            (ruta_id, fecha, horario),
         )
         reservas = await cursor.fetchall()
     finally:
@@ -863,6 +961,7 @@ async def disponibilidad_ruta(ruta_id: str, fecha: str, request: Request):
     return {
         "ruta_id": ruta_id,
         "fecha": fecha,
+        "horario": horario,
         "capacidad": capacidad,
         "asientos_ocupados": asientos_ocupados,
         "asientos_disponibles": capacidad - len(asientos_ocupados),
@@ -878,18 +977,20 @@ async def crear_reserva(reserva: Reserva, request: Request):
     reserva_id = str(uuid.uuid4())
 
     try:
-        booking_date = reserva.fecha_reserva.isoformat()
-        ruta, reservas_actuales = await get_route_capacity(cursor, reserva.ruta_id, fecha_reserva=booking_date)
+        horario = reserva.horario if reserva.horario in ("manana", "tarde") else "manana"
+        ruta, reservas_actuales = await get_route_capacity(cursor, reserva.ruta_id, horario=horario)
         capacidad = int(get_first_value(ruta))
         ruta_origen = ruta[1]
         ruta_destino = ruta[2]
         ruta_precio = int(ruta[3])
+        ruta_fecha = ruta[4]
+        booking_date = ruta_fecha.isoformat() if hasattr(ruta_fecha, "isoformat") else str(ruta_fecha)
 
         await cursor.execute("SELECT email FROM users WHERE id=%s", (current_user["id"],))
         email_row = await cursor.fetchone()
         user_email = email_row[0] if email_row else None
         if reservas_actuales >= capacidad:
-            raise HTTPException(status_code=400, detail="La ruta ha alcanzado su capacidad maxima para esa fecha")
+            raise HTTPException(status_code=400, detail="Ese horario ya esta lleno para esa fecha")
 
         passenger_name = normalize_text(reserva.nombre_pasajero or current_user["full_name"] or current_user["username"])
         phone = normalize_text(reserva.telefono)
@@ -904,11 +1005,11 @@ async def crear_reserva(reserva: Reserva, request: Request):
             raise HTTPException(status_code=400, detail="El asiento seleccionado no existe para esta ruta")
 
         await cursor.execute(
-            "SELECT id FROM reservas WHERE ruta_id=%s AND asiento=%s AND fecha_reserva=%s FOR UPDATE",
-            (reserva.ruta_id, seat, booking_date),
+            "SELECT id FROM reservas WHERE ruta_id=%s AND asiento=%s AND fecha_reserva=%s AND horario=%s FOR UPDATE",
+            (reserva.ruta_id, seat, booking_date, horario),
         )
         if await cursor.fetchone():
-            raise HTTPException(status_code=409, detail="Ese asiento ya fue reservado en esta ruta para esa fecha")
+            raise HTTPException(status_code=409, detail="Ese asiento ya fue reservado en ese horario para esa fecha")
 
         await cursor.execute(
             """
@@ -921,9 +1022,10 @@ async def crear_reserva(reserva: Reserva, request: Request):
                 fecha_reserva,
                 asiento,
                 metodo_pago,
-                estado_pago
+                estado_pago,
+                horario
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 reserva_id,
@@ -935,6 +1037,7 @@ async def crear_reserva(reserva: Reserva, request: Request):
                 seat,
                 payment_method,
                 "pagado",
+                horario,
             ),
         )
         await conn.commit()
@@ -957,6 +1060,7 @@ async def crear_reserva(reserva: Reserva, request: Request):
             "telefono": phone,
             "fecha_reserva": booking_date,
             "asiento": seat,
+            "horario": horario,
             "metodo_pago": payment_method,
             "estado_pago": "pagado",
             "actor": current_user["username"],
@@ -1061,6 +1165,122 @@ async def eliminar_reserva(reserva_id: str, request: Request):
     return {"mensaje": "Reserva cancelada", "id": reserva_id}
 
 
+@app.post("/reservas/{reserva_id}/cancelar")
+async def cancelar_mi_reserva(reserva_id: str, request: Request):
+    current_user = await require_user(request)
+
+    conn = await get_connection()
+    cursor = await conn.cursor(aiomysql.DictCursor)
+
+    try:
+        await cursor.execute(
+            """
+            SELECT reservas.id, reservas.user_id, reservas.fecha_reserva,
+                   reservas.estado_pago, reservas.asiento, rutas.precio
+            FROM reservas JOIN rutas ON reservas.ruta_id = rutas.id
+            WHERE reservas.id=%s FOR UPDATE
+            """,
+            (reserva_id,),
+        )
+        reserva = await cursor.fetchone()
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+
+        is_owner = reserva["user_id"] == current_user["id"]
+        if not is_owner and current_user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Solo puedes cancelar tus propias reservas")
+
+        if reserva["estado_pago"] == "cancelada":
+            raise HTTPException(status_code=400, detail="Esta reserva ya estaba cancelada")
+
+        # Ventana de cancelacion: solo antes del dia del viaje
+        fecha = reserva["fecha_reserva"]
+        if isinstance(fecha, str):
+            fecha = date.fromisoformat(fecha)
+        if fecha <= date.today():
+            raise HTTPException(
+                status_code=400,
+                detail="Ya no puedes cancelar: la fecha del viaje es hoy o ya paso",
+            )
+
+        # Calcula el reembolso segun la politica global
+        precio = int(reserva["precio"] or 0)
+        pct, monto = compute_refund(precio, fecha)
+        estado_reembolso = "pendiente" if monto > 0 else "no_aplica"
+
+        # Marca como cancelada, libera el asiento y registra el reembolso
+        await cursor.execute(
+            "UPDATE reservas SET estado_pago='cancelada', asiento=NULL, estado_reembolso=%s, monto_reembolso=%s WHERE id=%s",
+            (estado_reembolso, monto, reserva_id),
+        )
+        await conn.commit()
+    finally:
+        await cursor.close()
+        conn.close()
+
+    await invalidate_cache(request)
+    await publish_event(
+        request,
+        "reserva_cancelada",
+        {"id": reserva_id, "actor": current_user["username"], "origen": "usuario",
+         "monto_reembolso": monto, "porcentaje_reembolso": pct},
+    )
+    return {
+        "mensaje": "Reserva cancelada",
+        "id": reserva_id,
+        "porcentaje_reembolso": pct,
+        "monto_reembolso": monto,
+        "estado_reembolso": estado_reembolso,
+    }
+
+
+@app.get("/admin/reembolsos")
+async def listar_reembolsos_pendientes(request: Request):
+    await require_admin(request)
+    conn = await get_connection()
+    cursor = await conn.cursor(aiomysql.DictCursor)
+    try:
+        await cursor.execute(
+            """
+            SELECT reservas.id, reservas.nombre_pasajero, reservas.telefono,
+                   reservas.fecha_reserva, reservas.monto_reembolso, reservas.metodo_pago,
+                   rutas.origen, rutas.destino,
+                   users.username AS usuario_reserva, users.email AS email_usuario
+            FROM reservas
+            JOIN rutas ON reservas.ruta_id = rutas.id
+            LEFT JOIN users ON reservas.user_id = users.id
+            WHERE reservas.estado_reembolso='pendiente'
+            ORDER BY reservas.fecha_reserva
+            """
+        )
+        return await cursor.fetchall()
+    finally:
+        await cursor.close()
+        conn.close()
+
+
+@app.post("/admin/reembolsos/{reserva_id}/procesar")
+async def marcar_reembolso_procesado(reserva_id: str, request: Request):
+    admin_user = await require_admin(request)
+    conn = await get_connection()
+    cursor = await conn.cursor()
+    try:
+        await cursor.execute(
+            "UPDATE reservas SET estado_reembolso='reembolsado' WHERE id=%s AND estado_reembolso='pendiente'",
+            (reserva_id,),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No hay un reembolso pendiente con ese id")
+        await conn.commit()
+    finally:
+        await cursor.close()
+        conn.close()
+
+    await invalidate_cache(request)
+    await publish_event(request, "reembolso_procesado", {"id": reserva_id, "actor": admin_user["username"]})
+    return {"mensaje": "Reembolso marcado como procesado", "id": reserva_id}
+
+
 @app.get("/admin/dashboard")
 async def admin_dashboard(request: Request):
     await require_admin(request)
@@ -1070,6 +1290,14 @@ async def admin_dashboard(request: Request):
 
     conn = await get_connection()
     try:
+        # Archiva automaticamente las reservas cuyo viaje ya paso
+        cursor = await conn.cursor()
+        await cursor.execute(
+            "UPDATE reservas SET estado_pago='completada' WHERE fecha_reserva < CURDATE() AND estado_pago='pagado'"
+        )
+        await conn.commit()
+        await cursor.close()
+
         rutas = await get_routes_with_stats(conn)
         reservas = await get_reservations(conn)
     finally:

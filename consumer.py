@@ -43,6 +43,7 @@ def build_reservation_email(payload: dict) -> tuple[str, str]:
     asiento = payload.get("asiento", "")
     metodo = payload.get("metodo_pago", "")
     precio = format_money(payload.get("precio", 0))
+    horario = "Manana" if payload.get("horario") == "manana" else "Tarde/Noche"
 
     subject = f"Confirmacion de reserva {origen} - {destino}"
 
@@ -53,6 +54,7 @@ Tu reserva fue confirmada. Estos son los detalles:
   Codigo de reserva : {reserva_id}
   Ruta              : {origen} -> {destino}
   Fecha             : {fecha}
+  Horario           : {horario}
   Asiento           : {asiento}
   Metodo de pago    : {metodo}
   Total pagado      : {precio}
